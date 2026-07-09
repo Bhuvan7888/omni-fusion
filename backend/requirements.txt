@@ -1,0 +1,17 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+supabase
+torch
+captum
+shap
+pandas
+matplotlib
+httpx
+pytest
+python-dotenv
+fpdf2
+slowapi
+scikit-learn
+python-multipart
