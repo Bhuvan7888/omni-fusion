@@ -6,6 +6,10 @@ from sklearn.impute import KNNImputer
 from app.core.supabase_client import supabase
 
 class HistoricalService:
+    """
+    Values returned by this service are raw clinical units.
+    Scaling is applied exclusively in `InferenceService.predict()`. Do not scale here.
+    """
     def process_csv_upload(self, csv_bytes: bytes) -> dict:
         try:
             df = pd.read_csv(io.BytesIO(csv_bytes))
@@ -18,18 +22,23 @@ class HistoricalService:
             
         missing_before = df.isnull().sum().to_dict()
         
-        # Fit KNN
-        n_neighbors = min(5, row_count)
-        if n_neighbors < 1:
-            n_neighbors = 1
-            
-        # We only impute numeric columns
+        # Imputation logic
         numeric_df = df.select_dtypes(include=['number'])
+        imputation_method = "knn"
         
         if len(numeric_df.columns) > 0:
-            imputer = KNNImputer(n_neighbors=n_neighbors)
-            imputed_arr = imputer.fit_transform(numeric_df)
-            df[numeric_df.columns] = imputed_arr
+            if row_count < 3:
+                # Fallback to mean imputation if possible, else skip
+                if row_count > 1:
+                    df[numeric_df.columns] = numeric_df.fillna(numeric_df.mean())
+                    imputation_method = "mean_fallback_low_n"
+                else:
+                    imputation_method = "none_fallback_low_n"
+            else:
+                n_neighbors = min(5, row_count)
+                imputer = KNNImputer(n_neighbors=n_neighbors)
+                imputed_arr = imputer.fit_transform(numeric_df)
+                df[numeric_df.columns] = imputed_arr
             
         missing_after = df.isnull().sum().to_dict()
         
@@ -37,7 +46,9 @@ class HistoricalService:
             col: int(missing_before[col] - missing_after.get(col, 0))
             for col in missing_before if missing_before[col] > 0
         }
-        
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Imputation method used: {imputation_method}")
         session_id = str(uuid.uuid4())
         
         # Insert into upload_sessions

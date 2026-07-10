@@ -4,6 +4,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.impute import KNNImputer
+import joblib
 
 os.makedirs('data/processed', exist_ok=True)
 RANDOM_SEED = 42
@@ -62,6 +63,17 @@ X_m_train_scaled.to_parquet('data/processed/vitals_train.parquet')
 X_m_val_scaled.to_parquet('data/processed/vitals_val.parquet')
 X_m_test_scaled.to_parquet('data/processed/vitals_test.parquet')
 
+# Save artifacts for inference
+os.makedirs('models/checkpoints', exist_ok=True)
+joblib.dump(scaler, 'models/checkpoints/vitals_scaler.pkl')
+joblib.dump(features, 'models/checkpoints/vitals_scaler_feature_order.pkl')
+print(f"Scaler saved. Mean: {scaler.mean_}, Scale: {scaler.scale_}")
+
+# Export a small representative background sample for SHAP (50 rows from the scaled training set)
+X_sample_scaled = X_m_train_scaled[features].head(50).values
+np.save('models/checkpoints/shap_background.npy', X_sample_scaled)
+print(f"SHAP background saved. Shape: {X_sample_scaled.shape}")
+
 print("MIMIC-IV Shapes:")
 print(f"Train: {X_m_train_scaled.shape}")
 print(f"Val:   {X_m_val_scaled.shape}")
@@ -87,6 +99,10 @@ X_h_test_imp = pd.DataFrame(knn_imputer.transform(X_h_test), columns=X_h_test.co
 X_h_train_imp.to_parquet('data/processed/historical_train.parquet')
 X_h_val_imp.to_parquet('data/processed/historical_val.parquet')
 X_h_test_imp.to_parquet('data/processed/historical_test.parquet')
+
+# Save KNN imputer for inference
+joblib.dump(knn_imputer, 'models/checkpoints/historical_knn_imputer.pkl')
+print("KNN imputer saved.")
 
 print("Historical Stream Shapes:")
 print(f"Train: {X_h_train_imp.shape}")

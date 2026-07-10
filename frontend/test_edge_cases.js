@@ -42,29 +42,24 @@ const path = require('path');
   // Edge Case 3: Malformed ECG Payload
   console.log(`\n--- Edge Case 3: Malformed ECG ---`);
   page = await browser.newPage();
-  await page.setRequestInterception(true);
-  page.on('request', interceptedRequest => {
-    if (interceptedRequest.url().includes('/api/v1/predict') && interceptedRequest.method() === 'POST') {
-      const badPayload = {
-        patient_id: "edge_case_3",
-        ecg: [[0.0]], // Invalid shape
-        vitals: {
-          anchor_age: 65.0, gender: 1.0, Creatinine: 1.1, Glucose: 100.0,
-          Potassium: 4.0, Sodium: 139.0, HR: 82.0, SBP: 135.0,
-          DBP: 80.0, RR: 16.0, O2: 98.0
-        }
-      };
-      interceptedRequest.continue({
-        method: 'POST',
-        postData: JSON.stringify(badPayload),
-        headers: {
-          ...interceptedRequest.headers(),
-          'Content-Type': 'application/json'
-        }
-      });
-    } else {
-      interceptedRequest.continue();
-    }
+  await page.evaluateOnNewDocument(() => {
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+      const [resource, config] = args;
+      if (typeof resource === 'string' && resource.includes('/api/v1/predict') && config?.method === 'POST') {
+        const badPayload = {
+          patient_id: "edge_case_3",
+          ecg: [[0.0]], // Invalid shape
+          vitals: {
+            anchor_age: 65.0, gender: 1.0, Creatinine: 1.1, Glucose: 100.0,
+            Potassium: 4.0, Sodium: 139.0, HR: 82.0, SBP: 135.0,
+            DBP: 80.0, RR: 16.0, O2: 98.0
+          }
+        };
+        config.body = JSON.stringify(badPayload);
+      }
+      return originalFetch(resource, config);
+    };
   });
   await page.goto('http://localhost:3000', { waitUntil: 'networkidle2' });
   
@@ -85,20 +80,18 @@ const path = require('path');
   // Edge Case 4: Supabase Failure
   console.log(`\n--- Edge Case 4: Supabase Failure ---`);
   page = await browser.newPage();
-  await page.setRequestInterception(true);
-  page.on('request', interceptedRequest => {
-    // If the request is to supabase, block it? Wait, we intercept /predict and the backend calls supabase.
-    // The backend uses supabase. If we want to simulate a supabase failure, we'd have to scramble the backend's env.
-    // Let's just simulate the /predict endpoint returning 500.
-    if (interceptedRequest.url().includes('/api/v1/predict') && interceptedRequest.method() === 'POST') {
-      interceptedRequest.respond({
-        status: 500,
-        contentType: 'application/json',
-        body: JSON.stringify({ detail: "Database connection failed" })
-      });
-    } else {
-      interceptedRequest.continue();
-    }
+  await page.evaluateOnNewDocument(() => {
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+      const [resource, config] = args;
+      if (typeof resource === 'string' && resource.includes('/api/v1/predict') && config?.method === 'POST') {
+        return new Response(JSON.stringify({ detail: "Database connection failed" }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      return originalFetch(resource, config);
+    };
   });
   await page.goto('http://localhost:3000', { waitUntil: 'networkidle2' });
   buttons = await page.$$('button');

@@ -5,11 +5,17 @@ import io
 import torch
 import torch.nn.functional as F
 import numpy as np
+import sys
+sys.modules['numpy._core'] = np.core
+sys.modules['numpy._core.multiarray'] = np.core.multiarray
+sys.modules['numpy._core.numeric'] = np.core.numeric
+sys.modules['numpy._core.umath'] = np.core.umath
 import shap
 from captum.attr import LayerGradCam
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import joblib
 
 from app.core.config import settings
 from app.models.networks import ResNet1D, VitalsMLP, HistoricalGRU, OmniFusionNet
@@ -73,18 +79,42 @@ class InferenceService:
         self.feature_cols = ['anchor_age', 'gender', 'Creatinine', 'Glucose', 'Potassium', 'Sodium', 'HR', 'SBP', 'DBP', 'RR', 'O2']
         self.feature_names = [f"Vital_{c}" for c in self.feature_cols] + [f"Hist_{c}" for c in self.feature_cols]
 
-        # SHAP Background (dummy zeros for backend)
-        self.bg_summary = np.zeros((1, 22), dtype=np.float32)
+        # Load Scaler Artifacts
+        scaler_path = os.path.join(models_dir, 'checkpoints', 'vitals_scaler.pkl')
+        feature_order_path = os.path.join(models_dir, 'checkpoints', 'vitals_scaler_feature_order.pkl')
+        shap_bg_path = os.path.join(models_dir, 'checkpoints', 'shap_background.npy')
+        
+        if not os.path.exists(scaler_path) or not os.path.exists(feature_order_path) or not os.path.exists(shap_bg_path):
+            raise RuntimeError(f"Missing inference artifacts in {models_dir}/checkpoints. Please run training_scripts/02_preprocessing.py to generate them.")
+            
+        self.vitals_scaler = joblib.load(scaler_path)
+        self.scaler_feature_order = joblib.load(feature_order_path)
+        
+        if self.feature_cols != self.scaler_feature_order:
+            print(f"Warning: Expected feature order {self.feature_cols} does not match scaler feature order {self.scaler_feature_order}. Ensure correct mapping.")
+
+        # SHAP Background
+        self.bg_summary = np.load(shap_bg_path).astype(np.float32)
         print("InferenceService initialization complete.", flush=True)
 
     def predict(self, req: PredictRequest) -> PredictResponse:
-        vitals_arr = np.array([[getattr(req.vitals, c) for c in self.feature_cols]], dtype=np.float32)
+        vitals_arr_raw = np.array([[getattr(req.vitals, c) for c in self.scaler_feature_order]], dtype=np.float32)
+        
+        # Scale vitals
+        vitals_arr = self.vitals_scaler.transform(vitals_arr_raw).astype(np.float32)
+        
+        # Sanity check on scaled vitals
+        if np.any(np.abs(vitals_arr) > 8):
+            print(f"Warning: Transformed vitals have extreme values (> 8 standard deviations): {vitals_arr}")
         
         if req.historical:
-            hist_arr = np.array([[getattr(req.historical, c) for c in self.feature_cols]], dtype=np.float32)
+            hist_arr_raw = np.array([[getattr(req.historical, c) for c in self.scaler_feature_order]], dtype=np.float32)
+            hist_arr = self.vitals_scaler.transform(hist_arr_raw).astype(np.float32)
+            if np.any(np.abs(hist_arr) > 8):
+                print(f"Warning: Transformed historical vitals have extreme values (> 8 standard deviations): {hist_arr}")
             streams_used = ["ecg", "vitals", "historical"]
         else:
-            hist_arr = np.zeros((1, len(self.feature_cols)), dtype=np.float32)
+            hist_arr = np.zeros((1, len(self.scaler_feature_order)), dtype=np.float32)
             streams_used = ["ecg", "vitals"]
 
         pat_tabular = np.concatenate([vitals_arr, hist_arr], axis=1)
@@ -101,8 +131,8 @@ class InferenceService:
 
         # Tabular SHAP
         def predict_fn(tabular_array):
-            v = tabular_array[:, :len(self.feature_cols)]
-            h = tabular_array[:, len(self.feature_cols):]
+            v = tabular_array[:, :len(self.scaler_feature_order)]
+            h = tabular_array[:, len(self.scaler_feature_order):]
             v_tensor = torch.tensor(v, dtype=torch.float32).to(device)
             h_tensor = torch.tensor(h, dtype=torch.float32).unsqueeze(1).to(device)
             e_tensor = pat_ecg.repeat(tabular_array.shape[0], 1, 1)
@@ -111,7 +141,12 @@ class InferenceService:
                 p = torch.softmax(l, dim=1).cpu().numpy()[:, 1]
             return p
 
-        explainer = shap.KernelExplainer(predict_fn, self.bg_summary)
+        # We construct a combined background of shape (N, 22) from the SHAP background (which is shape (N, 11))
+        # Here we just pad historical with zeros, as historical might not be available, or copy the vitals background.
+        # But `self.bg_summary` now is shape (50, 11) or similar.
+        # We need a shape of (50, 22) for the SHAP explainer
+        combined_bg = np.concatenate([self.bg_summary, np.zeros_like(self.bg_summary)], axis=1)
+        explainer = shap.KernelExplainer(predict_fn, combined_bg)
         shap_vals = explainer.shap_values(pat_tabular)
         shap_dict = {self.feature_names[i]: float(shap_vals[0][i]) for i in range(len(self.feature_names))}
 

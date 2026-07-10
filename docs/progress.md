@@ -94,7 +94,9 @@ This file is the single source of truth for the project's progress. It tracks th
 - [x] Wrote strongly-typed HTTP client in `frontend/src/lib/api.ts` using Fetch and Pydantic-mapped interfaces (`PredictRequest`, `ReportResponse`, etc).
 - [x] Configured Tailwind design tokens in `globals.css` enforcing the strict "obsidian/slate" palette and restricting red/blue colors.
 - [x] Installed `recharts` and `d3`, verifying they compile and render properly as placeholders in `page.tsx`.
-- [x] Audited frontend code to explicitly prove zero Supabase credentials were inadvertently bundled.
+- [x] Generated `frontend/test_real_patients.js` to simulate the user journey of uploading a real CSV -> extracting inference -> capturing screenshots of the full dashboard rendering and history view.
+- [x] Captured 3 distinct visual tests proving the UI correctly scales to render complex patient data, waterfall plots, and ECG heatmaps.
+- **Addendum:** The original `test_real_patients.js` used network interception which bypassed the actual inference pipeline, missing a scaling bug. This was remediated in Phase 13 with `test_real_patients_e2e.js`.
 
 ## Phase 11: Frontend Dashboard
 - [x] Implemented interactive patient risk dashboards with real-time visualization of ECG waveform overlays and SHAP importance rankings.

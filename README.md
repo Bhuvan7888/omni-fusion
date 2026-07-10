@@ -34,6 +34,15 @@ The platform features an algorithmic equity constraint to ensure equal predictiv
 2. Fill in the values for `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (Found in Supabase Settings -> API).
    *Note: Never use the `anon` key on the backend for this project, it strictly relies on the Service Role key to bypass RLS.*
 3. Ensure `MODEL_PATH` points to the `omni_fusion_final.pt` checkpoint (e.g., `../models/exported/omni_fusion_final.pt`).
+4. Ensure the following model artifacts are present in your workspace before starting the backend (run the training/preprocessing scripts if missing):
+   - `models/exported/omni_fusion_final.pt` (Final trained model checkpoint)
+   - `models/checkpoints/vitals_scaler.pkl`
+   - `models/checkpoints/vitals_scaler_feature_order.pkl`
+   - `models/checkpoints/historical_knn_imputer.pkl`
+   - `models/checkpoints/shap_background.npy`
+   - `models/checkpoints/ecg_branch_config.json`
+   - `models/checkpoints/vitals_branch_config.json`
+   - `models/checkpoints/historical_branch_config.json`
 
 #### Frontend
 1. Copy `frontend/.env.local.example` to `frontend/.env.local`.

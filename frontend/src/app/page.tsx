@@ -29,17 +29,17 @@ export default function Dashboard() {
 
       // Extract vitals from historical if available, otherwise dummy
       const dummyVitals = {
-        anchor_age: historicalData?.anchor_age || 65.0,
-        gender: historicalData?.gender || 1,
-        Creatinine: historicalData?.Creatinine || 1.1,
-        Glucose: historicalData?.Glucose || 100.0,
-        Potassium: historicalData?.Potassium || 4.0,
-        Sodium: historicalData?.Sodium || 139.0,
-        HR: historicalData?.HR || 82.0,
-        SBP: historicalData?.SBP || 135.0,
-        DBP: historicalData?.DBP || 80.0,
-        RR: historicalData?.RR || 16.0,
-        O2: historicalData?.O2 || 98.0
+        anchor_age: historicalData?.anchor_age ?? 65.0,
+        gender: historicalData?.gender ?? 1,
+        Creatinine: historicalData?.Creatinine ?? 1.1,
+        Glucose: historicalData?.Glucose ?? 100.0,
+        Potassium: historicalData?.Potassium ?? 4.0,
+        Sodium: historicalData?.Sodium ?? 139.0,
+        HR: historicalData?.HR ?? 82.0,
+        SBP: historicalData?.SBP ?? 135.0,
+        DBP: historicalData?.DBP ?? 80.0,
+        RR: historicalData?.RR ?? 16.0,
+        O2: historicalData?.O2 ?? 98.0
       };
 
       const payload: PredictRequest = {
@@ -98,7 +98,10 @@ export default function Dashboard() {
         <section className="w-full mb-12 bg-obsidian border border-slate-800 rounded-2xl p-8 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="flex-1 w-full">
             <h2 className="text-lg font-semibold text-slate-200 mb-2">1. Patient Historical Data</h2>
-            <p className="text-slate-500 text-sm mb-4">Upload a CSV of previous visits. Vitals and ECG will be simulated for demo purposes.</p>
+            <p className="text-slate-500 text-sm mb-4">
+              Upload a CSV of previous visits. Vitals and historical fields are derived from your upload. <br/>
+              <span className="text-amber-400 font-medium">Note: ECG waveforms are purely synthetic for demo purposes regardless of your upload.</span>
+            </p>
             <FileUploadZone onSessionCreated={(res) => {
               setSessionId(res.session_id);
               if (res.aggregated_data) {
