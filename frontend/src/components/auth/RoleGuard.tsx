@@ -22,7 +22,7 @@ export function RoleGuard({
         router.push(redirectTo)
       } else if (profile && !allowedRoles.includes(profile.role)) {
         // Unauth for this role, send them to their dashboard
-        router.push(`/dashboard/${profile.role.toLowerCase()}`)
+        router.push(`/${profile.role.toLowerCase()}`)
       } else if (!profile) {
         // Needs onboarding
         router.push('/onboarding/patient') // Default fallback, but they might need to choose

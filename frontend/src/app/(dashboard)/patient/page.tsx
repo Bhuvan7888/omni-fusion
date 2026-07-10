@@ -116,7 +116,7 @@ export default function PatientDashboard() {
               <Activity className="w-5 h-5 mr-3" />
               <span className="font-medium">New Assessment</span>
             </Link>
-            <Link href="/patient/doctor" className="flex items-center w-full px-4 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition-colors">
+            <Link href="/patient/reports" className="flex items-center w-full px-4 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition-colors">
               <FileText className="w-5 h-5 mr-3" />
               <span className="font-medium">View Reports</span>
             </Link>

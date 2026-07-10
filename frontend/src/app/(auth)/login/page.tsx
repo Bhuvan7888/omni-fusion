@@ -27,7 +27,29 @@ export default function LoginPage() {
       setError(error.message)
       setLoading(false)
     } else {
-      router.push('/')
+      const { data: userAuth } = await supabase.auth.getUser()
+      if (userAuth.user) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userAuth.user.id)
+          .single()
+        
+        if (profileData?.role === 'DOCTOR') {
+          router.push('/doctor')
+        } else if (profileData?.role === 'PATIENT') {
+          router.push('/patient')
+        } else {
+          const intendedRole = localStorage.getItem('intended_role')
+          if (intendedRole === 'DOCTOR') {
+            router.push('/onboarding/doctor')
+          } else {
+            router.push('/onboarding/patient')
+          }
+        }
+      } else {
+        router.push('/')
+      }
       router.refresh()
     }
   }

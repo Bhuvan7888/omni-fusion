@@ -2,8 +2,17 @@
 
 import Link from 'next/link'
 import { Activity, ShieldCheck, Stethoscope, ChevronRight } from 'lucide-react'
+import { useAuth } from '@/components/auth/AuthProvider'
+import { createClient } from '@/lib/supabase/client'
 
 export default function LandingPage() {
+  const { user, profile } = useAuth()
+  const supabase = createClient()
+  
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    window.location.reload()
+  }
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 flex flex-col font-sans selection:bg-blue-500/30">
       {/* Header */}
@@ -15,12 +24,25 @@ export default function LandingPage() {
           </span>
         </div>
         <div className="flex items-center space-x-4">
-          <Link href="/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">
-            Log In
-          </Link>
-          <Link href="/signup" className="text-sm font-medium px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full transition-all shadow-lg shadow-blue-900/20">
-            Get Started
-          </Link>
+          {user ? (
+            <>
+              <button onClick={handleLogout} className="text-sm font-medium text-slate-300 hover:text-white transition-colors">
+                Sign Out
+              </button>
+              <Link href={profile?.role === 'DOCTOR' ? '/doctor' : '/patient'} className="text-sm font-medium px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full transition-all shadow-lg shadow-emerald-900/20">
+                Go to Dashboard
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">
+                Log In
+              </Link>
+              <Link href="/signup" className="text-sm font-medium px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full transition-all shadow-lg shadow-blue-900/20">
+                Get Started
+              </Link>
+            </>
+          )}
         </div>
       </header>
 
@@ -51,13 +73,22 @@ export default function LandingPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8">
-            <Link href="/signup" className="group flex items-center justify-center w-full sm:w-auto px-8 py-4 bg-white text-slate-950 font-semibold rounded-full hover:bg-slate-100 transition-all hover:scale-105">
-              Launch Platform
-              <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-            </Link>
-            <Link href="/login" className="flex items-center justify-center w-full sm:w-auto px-8 py-4 bg-slate-900 border border-slate-800 text-white font-semibold rounded-full hover:bg-slate-800 transition-all">
-              Sign In to Portal
-            </Link>
+            {user ? (
+              <Link href={profile?.role === 'DOCTOR' ? '/doctor' : '/patient'} className="group flex items-center justify-center w-full sm:w-auto px-8 py-4 bg-emerald-500 text-white font-semibold rounded-full hover:bg-emerald-400 transition-all hover:scale-105">
+                Go to your Dashboard
+                <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            ) : (
+              <>
+                <Link href="/signup" className="group flex items-center justify-center w-full sm:w-auto px-8 py-4 bg-white text-slate-950 font-semibold rounded-full hover:bg-slate-100 transition-all hover:scale-105">
+                  Launch Platform
+                  <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                </Link>
+                <Link href="/login" className="flex items-center justify-center w-full sm:w-auto px-8 py-4 bg-slate-900 border border-slate-800 text-white font-semibold rounded-full hover:bg-slate-800 transition-all">
+                  Sign In to Portal
+                </Link>
+              </>
+            )}
           </div>
         </div>
 

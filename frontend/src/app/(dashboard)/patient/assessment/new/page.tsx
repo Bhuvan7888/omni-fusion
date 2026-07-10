@@ -9,8 +9,10 @@ import EcgHeatmap from '@/components/EcgHeatmap';
 import { api } from '@/lib/api';
 import { PredictResponse, ReportResponse, PredictRequest } from '@/lib/types';
 import Link from 'next/link';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 export default function Dashboard() {
+  const { profile } = useAuth();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [historicalData, setHistoricalData] = useState<any>(null);
   const [isPredicting, setIsPredicting] = useState(false);

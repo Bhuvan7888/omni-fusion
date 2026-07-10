@@ -1,3 +1,4 @@
+from typing import List
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.core.supabase_client import supabase
@@ -27,14 +28,17 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
             "auth": user,
             "profile": profile
         }
+    except HTTPException:
+        raise
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Could not validate credentials: {str(e)}",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error during authentication: {str(e)}"
         )
 
-def require_role(allowed_roles: list[str]):
+def require_role(allowed_roles: List[str]):
     def role_checker(user_data: dict = Depends(get_current_user)):
         profile = user_data.get("profile")
         if not profile or profile.get("role") not in allowed_roles:

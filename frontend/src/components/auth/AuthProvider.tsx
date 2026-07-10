@@ -44,8 +44,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single()
       
       if (mounted) {
-        if (error) {
+        if (error && error.code !== 'PGRST116') {
           console.error("Error fetching profile", error)
+          setProfile(null)
+        } else if (error && error.code === 'PGRST116') {
+          // Normal during onboarding: user has no profile yet
           setProfile(null)
         } else {
           setProfile(data)

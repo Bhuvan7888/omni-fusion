@@ -115,7 +115,9 @@ export default function DoctorDashboard() {
                         {new Date(link.created_at).toLocaleDateString()}
                       </td>
                       <td className="p-4">
-                        <button className="text-blue-400 hover:text-blue-300 text-sm font-medium">View Records</button>
+                        <Link href={`/doctor/patients/${link.patient_id}`} className="text-blue-400 hover:text-blue-300 text-sm font-medium">
+                          View Records
+                        </Link>
                       </td>
                     </tr>
                   ))
