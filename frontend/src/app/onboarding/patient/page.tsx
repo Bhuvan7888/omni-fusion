@@ -58,7 +58,7 @@ export default function PatientOnboarding() {
         exercise_frequency: formData.exercise_frequency,
       })
       // Refresh page to trigger RoleGuard or fetch new profile
-      window.location.href = '/dashboard/patient'
+      window.location.href = '/patient'
     } catch (e: any) {
       setError(e.message)
       setLoading(false)

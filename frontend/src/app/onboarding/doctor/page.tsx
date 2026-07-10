@@ -38,7 +38,7 @@ export default function DoctorOnboarding() {
     setError(null)
     try {
       await api.onboardProfile(formData)
-      window.location.href = '/dashboard/doctor'
+      window.location.href = '/doctor'
     } catch (e: any) {
       setError(e.message)
       setLoading(false)
