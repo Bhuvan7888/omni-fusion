@@ -29,6 +29,12 @@ async def onboard_profile(profile_data: ProfileCreate, user_data: dict = Depends
     data = profile_data.model_dump(exclude_unset=True)
     data["id"] = user.id
     
+    # Auto-populate email from the authenticated user
+    if not data.get("email") and hasattr(user, "email"):
+        data["email"] = user.email
+    elif not data.get("email") and isinstance(user, dict) and "email" in user:
+        data["email"] = user["email"]
+    
     if "weight_kg" in data and "height_cm" in data:
         data["bmi"] = calculate_bmi(data["weight_kg"], data["height_cm"])
         

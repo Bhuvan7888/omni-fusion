@@ -5,7 +5,7 @@ from datetime import date, datetime
 class ProfileCreate(BaseModel):
     role: str
     full_name: str
-    email: str
+    email: Optional[str] = None
     date_of_birth: Optional[date] = None
     age: Optional[int] = None
     sex: Optional[str] = None
