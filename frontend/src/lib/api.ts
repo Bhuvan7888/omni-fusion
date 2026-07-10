@@ -9,10 +9,23 @@ import {
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
+import { createClient } from './supabase/client';
+
 class ApiClient {
   private async request<T>(endpoint: string, options: RequestInit): Promise<T> {
     const url = `${BASE_URL}${endpoint}`;
-    const response = await fetch(url, options);
+    
+    // Inject auth token if available
+    const supabase = createClient();
+    const { data } = await supabase.auth.getSession();
+    const headers = new Headers(options.headers || {});
+    
+    if (data.session?.access_token) {
+      headers.set('Authorization', `Bearer ${data.session.access_token}`);
+    }
+    
+    const fetchOptions = { ...options, headers };
+    const response = await fetch(url, fetchOptions);
 
     if (!response.ok) {
       let errorMessage = `API error: ${response.statusText}`;
@@ -60,6 +73,48 @@ class ApiClient {
   async getHistory(limit: number = 20, offset: number = 0): Promise<HistoryResponse> {
     return this.request<HistoryResponse>(`/api/v1/history?limit=${limit}&offset=${offset}`, {
       method: 'GET',
+    });
+  }
+
+  // PLATFORM EXTENSION ENDPOINTS
+
+  async onboardProfile(data: any): Promise<any> {
+    return this.request<any>('/api/v1/profiles/onboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getMyProfile(): Promise<any> {
+    return this.request<any>('/api/v1/profiles/me', {
+      method: 'GET',
+    });
+  }
+
+  async runClinicalInference(payload: PredictRequest): Promise<PredictResponse> {
+    return this.request<PredictResponse>('/api/v1/clinical/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async getClinicalAnalytics(): Promise<any> {
+    return this.request<any>('/api/v1/clinical/analytics', {
+      method: 'GET',
+    });
+  }
+
+  async getPatients(): Promise<any> {
+    return this.request<any>('/api/v1/clinical/patients', {
+      method: 'GET',
+    });
+  }
+
+  async requestLink(doctorId: string): Promise<any> {
+    return this.request<any>(`/api/v1/clinical/link?doctor_id=${doctorId}`, {
+      method: 'POST',
     });
   }
 }

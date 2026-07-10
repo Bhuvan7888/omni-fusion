@@ -1,188 +1,103 @@
-'use client';
+"use client"
 
-import { useState } from 'react';
-import { Activity, Download, ChevronRight, FileText } from 'lucide-react';
-import FileUploadZone from '@/components/FileUploadZone';
-import HistoryTimeline from '@/components/HistoryTimeline';
-import ShapWaterfall from '@/components/ShapWaterfall';
-import EcgHeatmap from '@/components/EcgHeatmap';
-import { api } from '@/lib/api';
-import { PredictResponse, ReportResponse, PredictRequest } from '@/lib/types';
-import Link from 'next/link';
+import Link from 'next/link'
+import { Activity, ShieldCheck, Stethoscope, ChevronRight } from 'lucide-react'
 
-export default function Dashboard() {
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [historicalData, setHistoricalData] = useState<any>(null);
-  const [isPredicting, setIsPredicting] = useState(false);
-  const [prediction, setPrediction] = useState<PredictResponse | null>(null);
-  const [report, setReport] = useState<ReportResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleRunInference = async () => {
-    setIsPredicting(true);
-    setError(null);
-    try {
-      // Create a noisy dummy ECG array so the model doesn't just see 0.0s
-      const noisyEcg = Array(12).fill(0).map((_, i) => 
-        Array(1000).fill(0).map((_, j) => Math.sin(j * 0.05 + i) * 0.5 + (Math.random() * 0.2))
-      );
-
-      // Extract vitals from historical if available, otherwise dummy
-      const dummyVitals = {
-        anchor_age: historicalData?.anchor_age ?? 65.0,
-        gender: historicalData?.gender ?? 1,
-        Creatinine: historicalData?.Creatinine ?? 1.1,
-        Glucose: historicalData?.Glucose ?? 100.0,
-        Potassium: historicalData?.Potassium ?? 4.0,
-        Sodium: historicalData?.Sodium ?? 139.0,
-        HR: historicalData?.HR ?? 82.0,
-        SBP: historicalData?.SBP ?? 135.0,
-        DBP: historicalData?.DBP ?? 80.0,
-        RR: historicalData?.RR ?? 16.0,
-        O2: historicalData?.O2 ?? 98.0
-      };
-
-      const payload: PredictRequest = {
-        patient_id: `patient_${Math.floor(Math.random() * 1000)}`,
-        ecg: noisyEcg,
-        vitals: dummyVitals,
-        historical: historicalData || undefined,
-        upload_session_id: sessionId || undefined
-      };
-
-      const pred = await api.runInference(payload);
-      setPrediction(pred);
-
-      // Instantly generate report
-      const rep = await api.generateReport(pred.prediction_id, {
-        patient_id: payload.patient_id,
-        shap_data: pred.shap_data,
-        ecg_gradcam_heatmap_b64: pred.ecg_gradcam_heatmap_b64,
-        failure_analysis_summary: pred.failure_analysis_summary
-      });
-      setReport(rep);
-
-    } catch (err: any) {
-      setError(err.message || 'Failed to run inference');
-    } finally {
-      setIsPredicting(false);
-    }
-  };
-
+export default function LandingPage() {
   return (
-    <main className="min-h-screen p-8 md:p-12 flex flex-col items-center">
-      <div className="w-full max-w-6xl">
-        <header className="flex items-center justify-between mb-12">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl shadow-lg">
-              <Activity className="w-8 h-8 text-slate-100" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight text-slate-50">Omni-Fusion Dashboard</h1>
-              <p className="text-slate-400 mt-1">Multimodal Patient Risk Assessment</p>
-            </div>
-          </div>
-          <Link href="/history" className="flex items-center space-x-2 text-slate-400 hover:text-slate-200 transition-colors">
-            <FileText className="w-5 h-5" />
-            <span className="font-medium">View History</span>
+    <div className="min-h-screen bg-slate-950 text-slate-200 flex flex-col font-sans selection:bg-blue-500/30">
+      {/* Header */}
+      <header className="absolute top-0 w-full p-6 flex justify-between items-center z-10 border-b border-white/5 bg-slate-950/50 backdrop-blur-md">
+        <div className="flex items-center space-x-3">
+          <Activity className="w-8 h-8 text-emerald-400" />
+          <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
+            Omni-Fusion
+          </span>
+        </div>
+        <div className="flex items-center space-x-4">
+          <Link href="/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">
+            Log In
           </Link>
-        </header>
+          <Link href="/signup" className="text-sm font-medium px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full transition-all shadow-lg shadow-blue-900/20">
+            Get Started
+          </Link>
+        </div>
+      </header>
 
-        {error && (
-          <div className="w-full bg-red-900/30 border border-red-800 text-red-200 p-4 rounded-lg mb-8">
-            {error}
-          </div>
-        )}
+      {/* Hero Section */}
+      <main className="flex-1 flex flex-col items-center justify-center pt-32 pb-20 px-4 relative overflow-hidden">
+        {/* Abstract Background Elements */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-600/10 rounded-full blur-[100px] pointer-events-none" />
 
-        {/* Top Section: Upload & Action */}
-        <section className="w-full mb-12 bg-obsidian border border-slate-800 rounded-2xl p-8 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="flex-1 w-full">
-            <h2 className="text-lg font-semibold text-slate-200 mb-2">1. Patient Historical Data</h2>
-            <p className="text-slate-500 text-sm mb-4">
-              Upload a CSV of previous visits. Vitals and historical fields are derived from your upload. <br/>
-              <span className="text-amber-400 font-medium">Note: ECG waveforms are purely synthetic for demo purposes regardless of your upload.</span>
-            </p>
-            <FileUploadZone onSessionCreated={(res) => {
-              setSessionId(res.session_id);
-              if (res.aggregated_data) {
-                setHistoricalData(res.aggregated_data);
-              }
-            }} />
+        <div className="max-w-4xl w-full text-center space-y-8 z-10 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+          <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-slate-900/80 border border-slate-800 text-sm font-medium text-emerald-400 mb-4">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span>Platform Extension V2 Live</span>
           </div>
+
+          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-white leading-tight">
+            The Future of <br className="hidden md:block" />
+            <span className="bg-gradient-to-r from-blue-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent">
+              Cardiovascular Intelligence
+            </span>
+          </h1>
           
-          <div className="hidden md:flex flex-col items-center justify-center px-4">
-            <ChevronRight className="w-8 h-8 text-slate-700" />
+          <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
+            Omni-Fusion seamlessly integrates multimodal patient data—combining ECG waveforms, vitals, and longitudinal history—to deliver precise, AI-driven clinical insights.
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8">
+            <Link href="/signup" className="group flex items-center justify-center w-full sm:w-auto px-8 py-4 bg-white text-slate-950 font-semibold rounded-full hover:bg-slate-100 transition-all hover:scale-105">
+              Launch Platform
+              <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+            </Link>
+            <Link href="/login" className="flex items-center justify-center w-full sm:w-auto px-8 py-4 bg-slate-900 border border-slate-800 text-white font-semibold rounded-full hover:bg-slate-800 transition-all">
+              Sign In to Portal
+            </Link>
+          </div>
+        </div>
+
+        {/* Feature Grid */}
+        <div className="max-w-5xl w-full grid grid-cols-1 md:grid-cols-3 gap-6 mt-32 z-10">
+          <div className="bg-slate-900/50 backdrop-blur-md border border-slate-800 p-8 rounded-3xl hover:border-blue-500/30 transition-colors">
+            <div className="w-12 h-12 bg-blue-500/20 text-blue-400 flex items-center justify-center rounded-2xl mb-6">
+              <Activity className="w-6 h-6" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-3">Multimodal AI</h3>
+            <p className="text-slate-400 leading-relaxed text-sm">
+              Process ECG, vitals, and electronic health records simultaneously for a comprehensive cardiovascular risk profile.
+            </p>
           </div>
 
-          <div className="flex-1 w-full flex flex-col items-center justify-center border-t md:border-t-0 md:border-l border-slate-800 pt-8 md:pt-0 pl-0 md:pl-8">
-            <h2 className="text-lg font-semibold text-slate-200 mb-4">2. Run AI Model</h2>
-            <button
-              onClick={handleRunInference}
-              disabled={isPredicting}
-              className={`px-8 py-4 rounded-xl font-bold text-lg flex items-center space-x-2 transition-all ${
-                isPredicting 
-                ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                : 'bg-slate-100 text-slate-900 hover:bg-white hover:shadow-xl hover:shadow-white/10'
-              }`}
-            >
-              {isPredicting ? (
-                <span>Processing Streams...</span>
-              ) : (
-                <>
-                  <Activity className="w-5 h-5" />
-                  <span>Execute Multimodal Inference</span>
-                </>
-              )}
-            </button>
-            {sessionId && !isPredicting && (
-              <p className="text-green-400 text-sm mt-4">Session attached. Ready.</p>
-            )}
+          <div className="bg-slate-900/50 backdrop-blur-md border border-slate-800 p-8 rounded-3xl hover:border-emerald-500/30 transition-colors">
+            <div className="w-12 h-12 bg-emerald-500/20 text-emerald-400 flex items-center justify-center rounded-2xl mb-6">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-3">Enterprise Security</h3>
+            <p className="text-slate-400 leading-relaxed text-sm">
+              Role-based access control with secure JWT authentication and strict Row Level Security policies for medical data.
+            </p>
           </div>
-        </section>
 
-        {/* Results Section */}
-        {prediction && (
-          <section className="w-full grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {/* Left Viewport */}
-            <div className="flex flex-col space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-100">
-                    Risk Score: <span className={prediction.risk_score > 0.5 ? 'text-red-400' : 'text-green-400'}>{(prediction.risk_score * 100).toFixed(1)}%</span>
-                  </h2>
-                  <p className="text-slate-500 text-sm mt-1">Streams combined: {prediction.streams_used.join(' + ')}</p>
-                </div>
-                {report && (
-                  <a 
-                    href={report.pdf_signed_url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex items-center space-x-2 bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg transition-colors border border-slate-700"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span className="text-sm font-medium">PDF Report</span>
-                  </a>
-                )}
-              </div>
-              
-              <ShapWaterfall shapData={prediction.shap_data} />
-              
-              <div className="w-full bg-slate-900 rounded-lg p-4 border border-slate-800">
-                <h3 className="text-slate-300 font-semibold mb-4 text-sm">Longitudinal Medical History</h3>
-                <HistoryTimeline />
-              </div>
+          <div className="bg-slate-900/50 backdrop-blur-md border border-slate-800 p-8 rounded-3xl hover:border-teal-500/30 transition-colors">
+            <div className="w-12 h-12 bg-teal-500/20 text-teal-400 flex items-center justify-center rounded-2xl mb-6">
+              <Stethoscope className="w-6 h-6" />
             </div>
+            <h3 className="text-xl font-bold text-white mb-3">Clinical Workflow</h3>
+            <p className="text-slate-400 leading-relaxed text-sm">
+              Seamlessly link patients with their respective doctors for collaborative review and automated AI report generation.
+            </p>
+          </div>
+        </div>
+      </main>
 
-            {/* Right Viewport */}
-            <div className="flex flex-col">
-              <EcgHeatmap 
-                base64Image={prediction.ecg_gradcam_heatmap_b64}
-                failureAnalysis={prediction.failure_analysis_summary}
-              />
-            </div>
-          </section>
-        )}
-      </div>
-    </main>
-  );
+      <footer className="py-8 text-center text-slate-500 text-sm border-t border-slate-900">
+        &copy; {new Date().getFullYear()} Omni-Fusion Healthcare. AI-assisted diagnostics platform.
+      </footer>
+    </div>
+  )
 }

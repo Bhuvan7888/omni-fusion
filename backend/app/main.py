@@ -8,7 +8,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from app.core.config import settings
-from app.api.v1 import health, predict, historical, reports, history
+from app.api.v1 import health, predict, historical, reports, history, profiles, clinical
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -57,6 +57,8 @@ app.include_router(predict.router, prefix="/api/v1", tags=["Inference"])
 app.include_router(historical.router, prefix="/api/v1", tags=["Data Upload"])
 app.include_router(reports.router, prefix="/api/v1", tags=["Reports"])
 app.include_router(history.router, prefix="/api/v1", tags=["History"])
+app.include_router(profiles.router, prefix="/api/v1", tags=["Profiles"])
+app.include_router(clinical.router, prefix="/api/v1/clinical", tags=["Clinical"])
 
 @app.on_event("startup")
 def startup_event():
