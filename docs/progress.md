@@ -110,3 +110,8 @@ This file is the single source of truth for the project's progress. It tracks th
 - [x] Confirmed `.env` and `.env.local` are gitignored and no secrets are leaked.
 - [x] Executed backend test suite using `pytest` successfully.
 - [x] Finalized root `README.md` for cold-start deployment instructions.
+
+## Phase 13: Local Testing & Bug Fixes (Jul 10, 2026)
+- [x] [22:17] Resolved `ModuleNotFoundError: No module named 'numpy._core'` by dynamically aliasing `numpy._core` to `numpy.core` in `inference_service.py` to support `joblib` unpickling in older numpy environments.
+- [x] [22:18] Bypassed strict JWT validation for local Supabase keys in `supabase-py` client.
+- [x] [22:19] Successfully ran and verified the full frontend and backend applications locally on ports 3000 and 8000.
