@@ -29,6 +29,7 @@ def predict(request: PredictRequest):
         # Convert PredictResponse back to dict to return it correctly (pydantic handles it, but we mutated it)
         supabase.table('predictions').insert({
             'id': prediction_id,
+            'patient_id': request.patient_id,
             'upload_session_id': request.upload_session_id,
             'risk_score': pred_res.risk_score,
             'streams_used': pred_res.streams_used,

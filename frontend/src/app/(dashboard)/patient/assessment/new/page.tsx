@@ -43,7 +43,7 @@ export default function Dashboard() {
       };
 
       const payload: PredictRequest = {
-        patient_id: "linked-by-backend",
+        patient_id: profile?.id || "",
         ecg: noisyEcg,
         vitals: dummyVitals,
         historical: historicalData || undefined,
