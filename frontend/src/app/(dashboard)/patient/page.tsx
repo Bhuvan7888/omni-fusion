@@ -6,19 +6,21 @@ import { useAuth } from '@/components/auth/AuthProvider'
 import { Activity, Heart, AlertCircle, TrendingUp, Calendar, FileText } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import Link from 'next/link'
+import { motion } from 'framer-motion'
 
 export default function PatientDashboard() {
   const { profile } = useAuth()
   const [analytics, setAnalytics] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [serviceOffline, setServiceOffline] = useState(false)
 
   useEffect(() => {
     async function load() {
       try {
         const data = await api.getClinicalAnalytics()
         setAnalytics(data)
-      } catch (e) {
-        console.error(e)
+      } catch {
+        setServiceOffline(true)
       } finally {
         setLoading(false)
       }
@@ -41,10 +43,24 @@ export default function PatientDashboard() {
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4">
-      <header>
-        <h1 className="text-3xl font-bold text-slate-100">Welcome, {profile?.full_name}</h1>
-        <p className="text-slate-400 mt-1">Here is your cardiovascular health overview.</p>
-      </header>
+      <section className="medical-hero">
+        <div className="hero-copy">
+          <span className="live-badge"><i/> AI health monitoring</span>
+          <h1>Welcome, {profile?.full_name || 'there'}</h1>
+          <p>Your cardiovascular intelligence center. Review your latest signals, risk trend, and care recommendations in one place.</p>
+          <div className="hero-actions">
+            <Link href="/patient/assessment/new" className="hero-primary"><Activity size={18}/> Start assessment</Link>
+            <Link href="/patient/reports" className="hero-secondary"><FileText size={18}/> View reports</Link>
+          </div>
+        </div>
+        <motion.div className="character-stage" initial={{opacity:0,scale:.94,x:30}} animate={{opacity:1,scale:1,x:0}} transition={{duration:1,ease:[.22,1,.36,1]}}>
+          <div className="character-aura"/>
+          <motion.img src="/cardiovascular-character.png" alt="An original translucent anatomical figure highlighting the cardiovascular system" animate={{y:[0,-7,0]}} transition={{duration:5,repeat:Infinity,ease:'easeInOut'}}/>
+          <motion.span className="heart-pulse" animate={{scale:[1,1.32,1],opacity:[.35,.8,.35]}} transition={{duration:1.05,repeat:Infinity,ease:'easeInOut'}}/>
+        </motion.div>
+      </section>
+
+      {serviceOffline && <div className="service-notice" role="status"><AlertCircle size={18}/><div><strong>Live analytics are temporarily unavailable</strong><span>The dashboard remains available. Start the API service on port 8000 to restore your clinical data.</span></div></div>}
 
       {/* Metrics Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

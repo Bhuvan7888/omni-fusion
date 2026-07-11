@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/components/auth/AuthProvider'
-import { Users, Activity, AlertTriangle, FileText, CheckCircle } from 'lucide-react'
+import { Users, Activity, AlertTriangle, FileText, CheckCircle, Copy, KeyRound } from 'lucide-react'
 import Link from 'next/link'
 
 export default function DoctorDashboard() {
@@ -11,16 +11,32 @@ export default function DoctorDashboard() {
   const [analytics, setAnalytics] = useState<any>(null)
   const [patients, setPatients] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [updatingLink, setUpdatingLink] = useState<string | null>(null)
+  const [doctorCode, setDoctorCode] = useState('')
+
+  const acceptPatient = async (linkId: string) => {
+    setUpdatingLink(linkId)
+    try {
+      await api.updateLinkStatus(linkId, 'accepted')
+      setPatients(current => current.map(link => link.id === linkId ? { ...link, status: 'accepted' } : link))
+    } catch {
+      alert('Could not accept this patient request. Please try again.')
+    } finally {
+      setUpdatingLink(null)
+    }
+  }
 
   useEffect(() => {
     async function load() {
       try {
-        const [anData, patData] = await Promise.all([
+        const [anData, patData, codeData] = await Promise.all([
           api.getClinicalAnalytics(),
-          api.getPatients()
+          api.getPatients(),
+          api.getDoctorCode()
         ])
         setAnalytics(anData)
         setPatients(patData || [])
+        setDoctorCode(codeData.code)
       } catch (e) {
         console.error(e)
       } finally {
@@ -45,6 +61,12 @@ export default function DoctorDashboard() {
           <p className="text-slate-400 mt-1">Clinical prediction summary for {profile?.full_name}</p>
         </div>
       </header>
+
+      <div className="bg-gradient-to-r from-emerald-500/10 to-blue-500/10 border border-emerald-500/20 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+        <div className="w-11 h-11 rounded-xl bg-white text-emerald-500 flex items-center justify-center"><KeyRound className="w-5 h-5" /></div>
+        <div className="flex-1"><p className="text-sm font-semibold text-slate-200">Your Doctor Connection Code</p><p className="text-xs text-slate-500">Share this code with patients. Entering it connects them to your clinical workspace immediately.</p></div>
+        <button onClick={() => navigator.clipboard.writeText(doctorCode)} className="px-4 py-2.5 bg-white border border-slate-800 rounded-xl flex items-center gap-2 font-mono font-bold text-slate-200"><span>{doctorCode || 'Loading...'}</span><Copy className="w-4 h-4" /></button>
+      </div>
 
       {/* Metrics Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -153,7 +175,7 @@ export default function DoctorDashboard() {
                       <p className="text-xs text-slate-500">Requested {new Date(link.created_at).toLocaleDateString()}</p>
                     </div>
                     <div className="flex gap-2">
-                      <button className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 flex items-center justify-center transition-colors">
+                      <button onClick={() => acceptPatient(link.id)} disabled={updatingLink === link.id} aria-label={`Accept ${link.profiles.full_name}`} className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 flex items-center justify-center transition-colors disabled:opacity-50">
                         <CheckCircle className="w-4 h-4" />
                       </button>
                     </div>

@@ -8,6 +8,9 @@ type Profile = {
   id: string
   role: string
   full_name?: string
+  age?: number
+  bmi?: number
+  smoking_status?: string
 }
 
 type AuthContextType = {

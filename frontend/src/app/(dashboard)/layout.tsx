@@ -1,110 +1,106 @@
+/* eslint-disable react-hooks/static-components */
 "use client"
 
-import { useAuth } from '@/components/auth/AuthProvider'
-import { RoleGuard } from '@/components/auth/RoleGuard'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { Activity, LayoutDashboard, Users, FileText, Settings, LogOut, FilePlus, Bell } from 'lucide-react'
+import { useState } from "react"
+import { AnimatePresence, motion } from "framer-motion"
+import { useAuth } from "@/components/auth/AuthProvider"
+import { RoleGuard } from "@/components/auth/RoleGuard"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import {
+  Activity, LayoutDashboard, Users, FileText, LogOut, FilePlus, Bell,
+  Menu, X, ChevronDown, PanelLeftClose, PanelLeftOpen, HeartPulse,
+} from "lucide-react"
+
+const pageNames: Record<string, string> = {
+  patient: "Health overview", doctor: "Clinical overview", reports: "Medical reports",
+  analytics: "Practice analytics", patients: "Patient directory", assessment: "New assessment",
+}
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { profile, signOut } = useAuth()
   const pathname = usePathname()
-
-  const isPatient = profile?.role === 'PATIENT'
-
+  const [collapsed, setCollapsed] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const isPatient = profile?.role === "PATIENT"
   const patientLinks = [
-    { name: 'Dashboard', href: '/patient', icon: LayoutDashboard },
-    { name: 'New Assessment', href: '/patient/assessment/new', icon: FilePlus },
-    { name: 'Reports', href: '/patient/reports', icon: FileText },
-    { name: 'My Doctor', href: '/patient/doctor', icon: Users },
+    { name: "Dashboard", href: "/patient", icon: LayoutDashboard },
+    { name: "New Assessment", href: "/patient/assessment/new", icon: FilePlus },
+    { name: "Reports", href: "/patient/reports", icon: FileText },
+    { name: "My Doctor", href: "/patient/doctor", icon: Users },
   ]
-
   const doctorLinks = [
-    { name: 'Overview', href: '/doctor', icon: LayoutDashboard },
-    { name: 'Patients', href: '/doctor/patients', icon: Users },
-    { name: 'Analytics', href: '/doctor/analytics', icon: Activity },
+    { name: "Overview", href: "/doctor", icon: LayoutDashboard },
+    { name: "Patients", href: "/doctor/patients", icon: Users },
+    { name: "Analytics", href: "/doctor/analytics", icon: Activity },
   ]
-
   const links = isPatient ? patientLinks : doctorLinks
+  const segments = pathname.split("/").filter(Boolean)
+  const title = pageNames[segments.at(-1) || ""] || (segments.length > 2 ? "Patient profile" : "Dashboard")
 
-  return (
-    <RoleGuard allowedRoles={['PATIENT', 'DOCTOR']}>
-      <div className="flex h-screen bg-slate-950 text-slate-200">
-        {/* Sidebar */}
-        <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col hidden md:flex">
-          <div className="h-16 flex items-center px-6 border-b border-slate-800">
-            <Activity className="w-6 h-6 text-emerald-400 mr-3" />
-            <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
-              Omni-Fusion
-            </span>
-          </div>
-          <div className="p-4 flex-1 overflow-y-auto">
-            <p className="text-xs font-semibold text-slate-500 mb-4 px-2 uppercase tracking-wider">
-              {isPatient ? 'Patient Portal' : 'Clinical Portal'}
-            </p>
-            <nav className="space-y-1">
-              {links.map(link => {
-                const isActive = pathname === link.href || pathname.startsWith(link.href + '/')
-                const Icon = link.icon
-                return (
-                  <Link
-                    key={link.name}
-                    href={link.href}
-                    className={`flex items-center px-3 py-2.5 rounded-lg transition-colors ${
-                      isActive 
-                        ? 'bg-blue-600/10 text-blue-400 font-medium' 
-                        : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-                    }`}
-                  >
-                    <Icon className="w-5 h-5 mr-3" />
-                    {link.name}
-                  </Link>
-                )
-              })}
-            </nav>
-          </div>
-          <div className="p-4 border-t border-slate-800">
-            <div className="flex items-center mb-4 px-2">
-              <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center font-bold text-sm">
-                {profile?.full_name?.charAt(0) || 'U'}
-              </div>
-              <div className="ml-3 truncate">
-                <p className="text-sm font-medium">{profile?.full_name}</p>
-                <p className="text-xs text-slate-500">{isPatient ? 'Patient' : 'Doctor'}</p>
-              </div>
-            </div>
-            <button
-              onClick={signOut}
-              className="flex items-center w-full px-3 py-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"
-            >
-              <LogOut className="w-5 h-5 mr-3" />
-              Sign Out
-            </button>
-          </div>
-        </aside>
-
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col h-screen overflow-hidden">
-          {/* Header */}
-          <header className="h-16 bg-slate-900/50 backdrop-blur border-b border-slate-800 flex items-center justify-between px-6 z-10">
-            <div className="md:hidden">
-              <Activity className="w-6 h-6 text-emerald-400" />
-            </div>
-            <div className="flex-1" />
-            <div className="flex items-center space-x-4">
-              <button className="p-2 text-slate-400 hover:text-slate-200 relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-              </button>
-            </div>
-          </header>
-          
-          {/* Scrollable Content */}
-          <main className="flex-1 overflow-y-auto">
-            {children}
-          </main>
+  const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
+    <motion.aside
+      initial={mobile ? { x: -320 } : false}
+      animate={{ x: 0, width: mobile ? 288 : collapsed ? 88 : 264 }}
+      exit={mobile ? { x: -320 } : undefined}
+      transition={{ type: "spring", stiffness: 330, damping: 34 }}
+      className={`dashboard-sidebar ${mobile ? "mobile-sidebar" : "desktop-sidebar"}`}
+    >
+      <div className="brand-row">
+        <div className="brand-mark"><HeartPulse size={21} /></div>
+        {(!collapsed || mobile) && <span className="brand-name">Omni<span>Fusion</span></span>}
+        {mobile && <button className="icon-button ml-auto" onClick={() => setMobileOpen(false)} aria-label="Close navigation"><X size={19}/></button>}
+      </div>
+      <div className="sidebar-content">
+        {(!collapsed || mobile) && <p className="eyebrow">{isPatient ? "Patient workspace" : "Clinical workspace"}</p>}
+        <nav className="sidebar-nav" aria-label="Primary navigation">
+          {links.map(link => {
+            const active = pathname === link.href || pathname.startsWith(link.href + "/")
+            const Icon = link.icon
+            return <Link key={link.name} href={link.href} title={collapsed && !mobile ? link.name : undefined}
+              onClick={() => setMobileOpen(false)} className={active ? "nav-item active" : "nav-item"}>
+              <Icon size={19}/>{(!collapsed || mobile) && <span>{link.name}</span>}
+              {active && <motion.i layoutId={mobile ? "mobile-active" : "desktop-active"}/>}
+            </Link>
+          })}
+        </nav>
+        <div className="care-card">
+          <span className="care-pulse"><Activity size={17}/></span>
+          {(!collapsed || mobile) && <div><strong>AI monitoring</strong><small>All systems operational</small></div>}
         </div>
       </div>
-    </RoleGuard>
+      <div className="sidebar-footer">
+        <button className="user-chip" onClick={() => setProfileOpen(!profileOpen)}>
+          <span className="avatar">{profile?.full_name?.charAt(0) || "U"}</span>
+          {(!collapsed || mobile) && <span className="user-copy"><strong>{profile?.full_name || "Your account"}</strong><small>{isPatient ? "Patient" : "Cardiologist"}</small></span>}
+        </button>
+        {!mobile && <button className="collapse-button" onClick={() => setCollapsed(!collapsed)} aria-label="Toggle sidebar">
+          {collapsed ? <PanelLeftOpen size={18}/> : <PanelLeftClose size={18}/>} {(!collapsed) && <span>Collapse</span>}
+        </button>}
+      </div>
+    </motion.aside>
   )
+
+  return <RoleGuard allowedRoles={["PATIENT", "DOCTOR"]}>
+    <div className="dashboard-shell">
+      <Sidebar />
+      <AnimatePresence>{mobileOpen && <><motion.button className="drawer-backdrop" aria-label="Close navigation" onClick={() => setMobileOpen(false)} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}/><Sidebar mobile /></>}</AnimatePresence>
+      <div className="dashboard-stage">
+        <header className="topbar">
+          <button className="icon-button mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Open navigation"><Menu size={20}/></button>
+          <div className="page-context"><span>{isPatient ? "My health" : "Workspace"} /</span><strong>{title}</strong></div>
+          <div className="top-actions">
+            <button className="icon-button notification" aria-label="Notifications"><Bell size={19}/><i/></button>
+            <button className="top-profile" onClick={() => setProfileOpen(!profileOpen)}><span className="avatar">{profile?.full_name?.charAt(0) || "U"}</span><ChevronDown size={15}/></button>
+          </div>
+          <AnimatePresence>{profileOpen && <motion.div className="profile-menu" initial={{opacity:0,y:-8,scale:.97}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-8}}>
+            <div><strong>{profile?.full_name || "Your account"}</strong><small>{isPatient ? "Patient account" : "Clinical account"}</small></div>
+            <button onClick={signOut}><LogOut size={16}/> Sign out</button>
+          </motion.div>}</AnimatePresence>
+        </header>
+        <motion.main key={pathname} className="dashboard-main" initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} transition={{duration:.42,ease:[.22,1,.36,1]}}>{children}</motion.main>
+      </div>
+    </div>
+  </RoleGuard>
 }

@@ -106,6 +106,16 @@ class ApiClient {
     });
   }
 
+  async getMyReports(): Promise<any[]> {
+    return this.request<any[]>('/api/v1/reports/mine', {
+      method: 'GET',
+    });
+  }
+
+  async ensureReport(predictionId: string): Promise<{ download_url: string; generated: boolean }> {
+    return this.request<{ download_url: string; generated: boolean }>(`/api/v1/reports/${predictionId}/ensure`, { method: 'POST' });
+  }
+
   async getPatients(): Promise<any> {
     return this.request<any>('/api/v1/clinical/patients', {
       method: 'GET',
@@ -116,6 +126,26 @@ class ApiClient {
     return this.request<any>(`/api/v1/clinical/link?doctor_id=${doctorId}`, {
       method: 'POST',
     });
+  }
+
+  async updateLinkStatus(linkId: string, status: 'accepted' | 'rejected'): Promise<any> {
+    return this.request<any>(`/api/v1/clinical/link/${linkId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async getDoctorCode(): Promise<{ code: string }> {
+    return this.request<{ code: string }>('/api/v1/clinical/doctor-code', { method: 'GET' });
+  }
+
+  async connectByDoctorCode(code: string): Promise<any> {
+    return this.request<any>(`/api/v1/clinical/connect-by-code?code=${encodeURIComponent(code)}`, { method: 'POST' });
+  }
+
+  async getPatientRecord(patientId: string): Promise<any> {
+    return this.request<any>(`/api/v1/clinical/patients/${patientId}/record`, { method: 'GET' });
   }
 }
 

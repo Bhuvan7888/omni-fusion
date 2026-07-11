@@ -1,39 +1,26 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { Users, Search, Activity, ChevronRight, Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import { api } from '@/lib/api'
 
 export default function DoctorPatientsPage() {
   const { profile } = useAuth()
   const [patients, setPatients] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+  const [doctorCode, setDoctorCode] = useState('')
+  const [showInvite, setShowInvite] = useState(false)
 
   useEffect(() => {
     async function fetchPatients() {
       if (!profile) return
 
       try {
-        const { data: links, error } = await supabase
-          .from('doctor_patient_links')
-          .select(`
-            patient_id,
-            status,
-            profiles:patient_id (
-              id,
-              full_name,
-              email
-            )
-          `)
-          .eq('doctor_id', profile.id)
-          .eq('status', 'active')
-
-        if (error) throw error
-        
-        setPatients(links?.map(l => l.profiles) || [])
+        const [links, code] = await Promise.all([api.getPatients(), api.getDoctorCode()])
+        setPatients((links || []).filter((link: any) => link.status === 'accepted').map((link: any) => link.profiles))
+        setDoctorCode(code.code)
       } catch (err) {
         console.error("Error fetching patients:", err)
       } finally {
@@ -42,7 +29,7 @@ export default function DoctorPatientsPage() {
     }
 
     fetchPatients()
-  }, [profile, supabase])
+  }, [profile])
 
   if (loading) {
     return (
@@ -78,14 +65,15 @@ export default function DoctorPatientsPage() {
           <p className="text-slate-400 max-w-sm mb-6">
             You don't have any patients linked to your account yet. Have your patients enter your Doctor ID during their onboarding, or invite them via email.
           </p>
-          <button className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors font-medium">
+          <button onClick={() => setShowInvite(!showInvite)} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors font-medium">
             Invite Patient
           </button>
+          {showInvite && <div className="mt-5 w-full max-w-sm rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4"><p className="text-sm font-semibold text-slate-300">Share your doctor code</p><button onClick={() => navigator.clipboard.writeText(doctorCode)} className="mt-2 w-full bg-white border border-slate-800 rounded-xl px-4 py-3 font-mono font-bold text-emerald-600">{doctorCode} · Copy</button><p className="text-xs text-slate-500 mt-2">The patient enters this under My Doctor and is connected immediately.</p></div>}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {patients.map((patient) => (
-            <div key={patient.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 hover:border-slate-700 transition-colors group cursor-pointer">
+            <Link href={`/doctor/patients/${patient.id}`} key={patient.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 hover:border-slate-700 transition-colors group cursor-pointer">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center font-bold text-slate-300">
@@ -104,7 +92,7 @@ export default function DoctorPatientsPage() {
                 <span>View recent scans</span>
                 <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

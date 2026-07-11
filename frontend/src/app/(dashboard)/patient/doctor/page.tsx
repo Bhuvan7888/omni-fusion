@@ -3,13 +3,20 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/auth/AuthProvider'
-import { Users, Mail, Phone, MapPin, Loader2, Link2 } from 'lucide-react'
+import { Users, Mail, Phone, MapPin, Loader2, Link2, KeyRound } from 'lucide-react'
+import { api } from '@/lib/api'
 
 export default function MyDoctorPage() {
   const { profile } = useAuth()
   const [doctor, setDoctor] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [errorStr, setErrorStr] = useState<string | null>(null)
+  const [availableDoctors, setAvailableDoctors] = useState<any[] | null>(null)
+  const [searching, setSearching] = useState(false)
+  const [requestingId, setRequestingId] = useState<string | null>(null)
+  const [requestSent, setRequestSent] = useState<string | null>(null)
+  const [doctorCode, setDoctorCode] = useState('')
+  const [connectingCode, setConnectingCode] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -22,8 +29,10 @@ export default function MyDoctorPage() {
           .from('doctor_patient_links')
           .select('doctor_id')
           .eq('patient_id', profile.id)
-          .eq('status', 'active')
-          .single()
+          .eq('status', 'accepted')
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle()
 
         if (linkError && linkError.code !== 'PGRST116') {
           throw linkError
@@ -49,6 +58,53 @@ export default function MyDoctorPage() {
 
     fetchDoctor()
   }, [profile, supabase])
+
+  const findCardiologists = async () => {
+    setSearching(true)
+    setErrorStr(null)
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, specialization, hospital, phone')
+        .eq('role', 'DOCTOR')
+        .order('full_name')
+      if (error) throw error
+      setAvailableDoctors(data || [])
+    } catch {
+      setAvailableDoctors(null)
+      setErrorStr('Cardiologists could not be loaded right now. Please try again.')
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  const requestDoctor = async (doctorId: string) => {
+    setRequestingId(doctorId)
+    setErrorStr(null)
+    try {
+      await api.requestLink(doctorId)
+      setRequestSent(doctorId)
+    } catch (error) {
+      setErrorStr(error instanceof Error ? error.message : 'Could not send the connection request.')
+    } finally {
+      setRequestingId(null)
+    }
+  }
+
+  const connectWithCode = async () => {
+    if (!doctorCode.trim()) return
+    setConnectingCode(true)
+    setErrorStr(null)
+    try {
+      const result = await api.connectByDoctorCode(doctorCode)
+      setDoctor(result.doctor)
+      setAvailableDoctors(null)
+    } catch (error) {
+      setErrorStr(error instanceof Error ? error.message : 'The doctor code is invalid.')
+    } finally {
+      setConnectingCode(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -89,8 +145,8 @@ export default function MyDoctorPage() {
                   Primary Cardiologist
                 </div>
                 <h2 className="text-2xl font-bold text-white">Dr. {doctor.full_name}</h2>
-                {doctor.metadata?.specialty && (
-                  <p className="text-slate-400">{doctor.metadata.specialty}</p>
+                {doctor.specialization && (
+                  <p className="text-slate-400">{doctor.specialization}</p>
                 )}
               </div>
 
@@ -101,16 +157,16 @@ export default function MyDoctorPage() {
                     {doctor.email}
                   </a>
                 </div>
-                {doctor.metadata?.phone && (
+                {doctor.phone && (
                   <div className="flex items-center text-slate-300">
                     <Phone className="w-5 h-5 text-slate-500 mr-3" />
-                    {doctor.metadata.phone}
+                    {doctor.phone}
                   </div>
                 )}
-                {doctor.metadata?.clinic_address && (
+                {doctor.hospital && (
                   <div className="flex items-center text-slate-300 sm:col-span-2">
                     <MapPin className="w-5 h-5 text-slate-500 mr-3 shrink-0" />
-                    <span>{doctor.metadata.clinic_address}</span>
+                    <span>{doctor.hospital}</span>
                   </div>
                 )}
               </div>
@@ -124,11 +180,43 @@ export default function MyDoctorPage() {
           </div>
           <h3 className="text-xl font-medium text-white mb-3">No Doctor Assigned</h3>
           <p className="text-slate-400 max-w-md mb-8">
-            You are not currently linked to a cardiologist in the system. When a doctor requests access to your profile, you will be able to review and approve the connection here.
+            Enter the connection code shared by your doctor, or browse available cardiologists.
           </p>
-          <button className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition-colors font-medium shadow-lg shadow-emerald-900/20">
-            Find a Cardiologist
+          <div className="w-full max-w-md mb-5">
+            <label className="text-sm font-semibold text-slate-300 mb-2 flex items-center justify-center gap-2"><KeyRound className="w-4 h-4" /> Doctor Connection Code</label>
+            <div className="flex gap-2">
+              <input value={doctorCode} onChange={(event) => setDoctorCode(event.target.value.toUpperCase())} placeholder="OF-1234ABCD" className="flex-1 bg-white border border-slate-800 rounded-xl px-4 py-3 text-center font-mono uppercase" />
+              <button onClick={connectWithCode} disabled={connectingCode || !doctorCode.trim()} className="px-5 py-3 bg-emerald-600 text-white rounded-xl font-semibold disabled:opacity-50">{connectingCode ? 'Connecting...' : 'Connect'}</button>
+            </div>
+          </div>
+          <button onClick={findCardiologists} disabled={searching} className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition-colors font-medium shadow-lg shadow-emerald-900/20 disabled:opacity-60 flex items-center gap-2">
+            {searching && <Loader2 className="w-4 h-4 animate-spin" />}
+            {searching ? 'Finding Cardiologists...' : 'Find a Cardiologist'}
           </button>
+
+          {availableDoctors?.length === 0 && !searching && (
+            <div className="mt-7 px-5 py-4 rounded-2xl bg-slate-800/50 border border-slate-800 w-full max-w-md" role="status">
+              <p className="font-semibold text-slate-300">No doctors available</p>
+              <p className="text-sm text-slate-500 mt-1">There are currently no registered cardiologists accepting connections.</p>
+            </div>
+          )}
+
+          {availableDoctors && availableDoctors.length > 0 && (
+            <div className="mt-8 w-full text-left grid gap-3">
+              {availableDoctors.map((item) => (
+                <div key={item.id} className="bg-white border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0"><Users className="w-5 h-5" /></div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-semibold text-slate-200">Dr. {item.full_name || 'Cardiologist'}</h4>
+                    <p className="text-sm text-slate-500">{item.specialization || 'Cardiology'}{item.hospital ? ` · ${item.hospital}` : ''}</p>
+                  </div>
+                  <button onClick={() => requestDoctor(item.id)} disabled={requestingId === item.id || requestSent === item.id} className="px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold disabled:opacity-60">
+                    {requestingId === item.id ? 'Sending...' : requestSent === item.id ? 'Request Sent' : 'Request Connection'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

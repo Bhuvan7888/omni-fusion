@@ -52,7 +52,7 @@ class HistoricalService:
         session_id = str(uuid.uuid4())
         
         # Insert into upload_sessions
-        data, count = supabase.table('upload_sessions').insert({
+        supabase.table('upload_sessions').insert({
             'id': session_id,
             'source_filename': 'uploaded.csv',
             'row_count': row_count,

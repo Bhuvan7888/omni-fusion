@@ -1,68 +1,49 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { FileText, Download, Calendar, Activity, Loader2 } from 'lucide-react'
+import { api } from '@/lib/api'
 
 export default function PatientReports() {
   const { profile } = useAuth()
   const [reports, setReports] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+  const [errorStr, setErrorStr] = useState<string | null>(null)
+  const [preparingId, setPreparingId] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchReports() {
       if (!profile) return
 
       try {
-        // Fetch predictions for the patient that have reports
-        const { data: predictions, error } = await supabase
-          .from('predictions')
-          .select(`
-            id,
-            created_at,
-            risk_score,
-            status,
-            reports (
-              id,
-              pdf_storage_path
-            ),
-            doctor_notes (
-              id,
-              note,
-              created_at
-            )
-          `)
-          .eq('patient_id', profile.id)
-          .order('created_at', { ascending: false })
-
-        if (error) throw error
-        
-        setReports(predictions || [])
-      } catch (err) {
-        console.error("Error fetching reports:", err)
+        const predictions = await api.getMyReports()
+        setReports(predictions)
+      } catch {
+        setErrorStr("Reports could not be loaded right now. Please check your connection and try again.")
       } finally {
         setLoading(false)
       }
     }
 
     fetchReports()
-  }, [profile, supabase])
+  }, [profile])
 
-  const downloadReport = async (path: string) => {
+  const downloadReport = async (predictionId: string, url?: string) => {
+    setPreparingId(predictionId)
     try {
-      const { data, error } = await supabase.storage
-        .from('reports')
-        .createSignedUrl(path, 60)
-        
-      if (error) throw error
-      if (data?.signedUrl) {
-        window.open(data.signedUrl, '_blank')
+      let downloadUrl = url
+      if (!downloadUrl) {
+        const result = await api.ensureReport(predictionId)
+        downloadUrl = result.download_url
+        setReports(current => current.map(item => item.id === predictionId ? { ...item, reports: [{ ...(item.reports?.[0] || {}), download_url: downloadUrl }] } : item))
       }
-    } catch (err) {
-      console.error("Error downloading report:", err)
-      alert("Could not download report.")
+      if (!downloadUrl) throw new Error('No download URL returned')
+      window.open(downloadUrl, '_blank', 'noopener,noreferrer')
+    } catch {
+      setErrorStr('This report could not be prepared. Please try again.')
+    } finally {
+      setPreparingId(null)
     }
   }
 
@@ -82,6 +63,8 @@ export default function PatientReports() {
           <p className="text-slate-400">View and download your generated clinical reports.</p>
         </div>
       </div>
+
+      {errorStr && <div className="service-notice mb-6" role="alert"><Activity className="shrink-0" size={18}/><div><strong>Reports service unavailable</strong><span>{errorStr}</span></div></div>}
 
       {reports.length === 0 ? (
         <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-12 text-center flex flex-col items-center">
@@ -108,13 +91,12 @@ export default function PatientReports() {
             };
 
             return (
-              <div key={pred.id} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 hover:border-slate-700 transition-colors">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <article key={pred.id} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 hover:border-emerald-500/30 transition-all hover:-translate-y-1 hover:shadow-xl flex flex-col min-h-[290px]">
                   <div className="flex items-start space-x-4">
                     <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center shrink-0">
                       <Activity className="w-6 h-6 text-blue-400" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <h3 className="text-lg font-medium text-white mb-1">
                         Cardiovascular Assessment
                       </h3>
@@ -124,43 +106,35 @@ export default function PatientReports() {
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="flex flex-col md:flex-row items-center gap-4">
-                    <div className="px-4 py-2 bg-slate-950 rounded-xl border border-slate-800 text-center min-w-[120px]">
+
+                  <div className="mt-6 px-4 py-3 bg-slate-950 rounded-2xl border border-slate-800 flex items-center justify-between">
                       <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Risk Score</p>
                       <p className={`text-lg font-bold ${pred.risk_score > 0.5 ? 'text-red-400' : 'text-emerald-400'}`}>
                         {(pred.risk_score * 100).toFixed(1)}%
                       </p>
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      {pred.reports && pred.reports.length > 0 ? (
+                  </div>
+
+                    <div className="mt-auto pt-5 grid gap-2">
                         <button 
-                          onClick={() => downloadReport(pred.reports[0].pdf_storage_path)}
-                          className="px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-medium transition-colors flex items-center"
+                          onClick={() => downloadReport(pred.id, hasReport ? pred.reports[0].download_url : undefined)}
+                          disabled={preparingId === pred.id}
+                          className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center disabled:opacity-60"
                         >
-                          <Download className="w-4 h-4 mr-2" />
-                          Download PDF
+                          {preparingId === pred.id ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+                          {preparingId === pred.id ? 'Preparing PDF...' : hasReport ? 'Download PDF Report' : 'Generate & Download PDF'}
                         </button>
-                      ) : (
-                        <span className="px-4 py-3 bg-slate-800 text-slate-500 rounded-xl text-sm font-medium">
-                          No PDF Generated
-                        </span>
-                      )}
 
                       {pred.doctor_notes && pred.doctor_notes.length > 0 && (
                         <button 
                           onClick={() => downloadDoctorNote(pred.doctor_notes[0].note, pred.doctor_notes[0].created_at)}
-                          className="px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-medium transition-colors flex items-center"
+                          className="w-full px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-sm font-medium transition-colors flex items-center justify-center"
                         >
                           <Download className="w-4 h-4 mr-2" />
                           Doctor's Notes
                         </button>
                       )}
                     </div>
-                  </div>
-                </div>
-              </div>
+              </article>
             )
           })}
         </div>

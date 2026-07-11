@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Activity, Download, ChevronRight, FileText } from 'lucide-react';
+import { Activity, Download, ChevronRight, FileText, CheckCircle } from 'lucide-react';
 import FileUploadZone from '@/components/FileUploadZone';
 import HistoryTimeline from '@/components/HistoryTimeline';
 import ShapWaterfall from '@/components/ShapWaterfall';
@@ -166,6 +166,15 @@ export default function Dashboard() {
                   </a>
                 )}
               </div>
+              {report && (
+                <div className="service-notice report-saved-notice">
+                  <CheckCircle className="shrink-0" size={18} />
+                  <div>
+                    <strong>Report saved to your medical history</strong>
+                    <span>Generated {new Date().toLocaleString()} · You can download it anytime from <Link href="/patient/reports" className="underline">Reports</Link>.</span>
+                  </div>
+                </div>
+              )}
               
               <ShapWaterfall shapData={prediction.shap_data} />
               
