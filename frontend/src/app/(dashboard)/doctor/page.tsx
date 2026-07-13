@@ -5,11 +5,12 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { Users, Activity, AlertTriangle, FileText, CheckCircle, Copy, KeyRound } from 'lucide-react'
 import Link from 'next/link'
+import type { ClinicalAnalytics, DoctorPatientLink } from '@/lib/types'
 
 export default function DoctorDashboard() {
   const { profile } = useAuth()
-  const [analytics, setAnalytics] = useState<any>(null)
-  const [patients, setPatients] = useState<any[]>([])
+  const [analytics, setAnalytics] = useState<ClinicalAnalytics | null>(null)
+  const [patients, setPatients] = useState<DoctorPatientLink[]>([])
   const [loading, setLoading] = useState(true)
   const [updatingLink, setUpdatingLink] = useState<string | null>(null)
   const [doctorCode, setDoctorCode] = useState('')
@@ -76,7 +77,7 @@ export default function DoctorDashboard() {
           </div>
           <div>
             <p className="text-sm font-medium text-slate-400">Total Patients</p>
-            <h3 className="text-2xl font-bold text-slate-100">{analytics?.total_patients || 0}</h3>
+            <h3 className="text-2xl font-bold text-slate-100">{analytics?.totalPatients || 0}</h3>
           </div>
         </div>
         
@@ -87,7 +88,7 @@ export default function DoctorDashboard() {
           <div>
             <p className="text-sm font-medium text-slate-400">Average Patient Risk</p>
             <h3 className="text-2xl font-bold text-slate-100">
-              {analytics?.average_risk_all ? (analytics.average_risk_all * 100).toFixed(1) + '%' : 'N/A'}
+              {analytics?.averageRiskAll ? (analytics.averageRiskAll * 100).toFixed(1) + '%' : 'N/A'}
             </h3>
           </div>
         </div>
@@ -98,7 +99,7 @@ export default function DoctorDashboard() {
           </div>
           <div>
             <p className="text-sm font-medium text-slate-400">High Risk Patients</p>
-            <h3 className="text-2xl font-bold text-slate-100 text-red-400">{analytics?.high_risk_patients || 0}</h3>
+            <h3 className="text-2xl font-bold text-slate-100 text-red-400">{analytics?.highRiskPatients || 0}</h3>
           </div>
         </div>
       </div>
@@ -125,7 +126,7 @@ export default function DoctorDashboard() {
                   acceptedPatients.map(link => (
                     <tr key={link.id} className="hover:bg-slate-800/50 transition-colors">
                       <td className="p-4">
-                        <div className="font-medium text-slate-200">{link.profiles.full_name}</div>
+                        <div className="font-medium text-slate-200">{link.profiles.fullName}</div>
                         <div className="text-xs text-slate-500">BMI: {link.profiles.bmi || 'N/A'}</div>
                       </td>
                       <td className="p-4">
@@ -134,10 +135,10 @@ export default function DoctorDashboard() {
                         </span>
                       </td>
                       <td className="p-4 text-slate-400 text-sm">
-                        {new Date(link.created_at).toLocaleDateString()}
+                        {new Date(link.createdAt).toLocaleDateString()}
                       </td>
                       <td className="p-4">
-                        <Link href={`/doctor/patients/${link.patient_id}`} className="text-blue-400 hover:text-blue-300 text-sm font-medium">
+                        <Link href={`/doctor/patients/${link.patientId}`} className="text-blue-400 hover:text-blue-300 text-sm font-medium">
                           View Records
                         </Link>
                       </td>
@@ -171,11 +172,11 @@ export default function DoctorDashboard() {
                 pendingRequests.map(link => (
                   <div key={link.id} className="py-4 flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-slate-200">{link.profiles.full_name}</p>
-                      <p className="text-xs text-slate-500">Requested {new Date(link.created_at).toLocaleDateString()}</p>
+                      <p className="text-sm font-medium text-slate-200">{link.profiles.fullName}</p>
+                      <p className="text-xs text-slate-500">Requested {new Date(link.createdAt).toLocaleDateString()}</p>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => acceptPatient(link.id)} disabled={updatingLink === link.id} aria-label={`Accept ${link.profiles.full_name}`} className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 flex items-center justify-center transition-colors disabled:opacity-50">
+                      <button onClick={() => acceptPatient(link.id)} disabled={updatingLink === link.id} aria-label={`Accept ${link.profiles.fullName}`} className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 flex items-center justify-center transition-colors disabled:opacity-50">
                         <CheckCircle className="w-4 h-4" />
                       </button>
                     </div>

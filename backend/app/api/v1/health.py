@@ -4,7 +4,7 @@ from app.core.supabase_client import supabase, logger
 router = APIRouter()
 
 @router.get("/health")
-def health_check():
+async def health_check():
     db_healthy = False
     try:
         # A trivial query to check Supabase connectivity

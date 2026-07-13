@@ -7,12 +7,13 @@ import os
 import logging
 import base64
 from app.core.auth import require_role
+from app.models.enums import Role
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 @router.get("/reports/mine")
-def list_my_reports(user_data: dict = Depends(require_role(["PATIENT"]))):
+async def list_my_reports(user_data: dict = Depends(require_role([Role.PATIENT]))):
     """Return the authenticated patient's persisted assessments and fresh download URLs."""
     patient_id = user_data.get("auth").id
     try:
@@ -36,7 +37,7 @@ def list_my_reports(user_data: dict = Depends(require_role(["PATIENT"]))):
         raise HTTPException(status_code=500, detail="Unable to load reports")
 
 @router.post("/reports/{prediction_id}/ensure")
-def ensure_archived_report(prediction_id: str, user_data: dict = Depends(require_role(["PATIENT"]))):
+async def ensure_archived_report(prediction_id: str, user_data: dict = Depends(require_role([Role.PATIENT]))):
     """Return an existing PDF or create a downloadable summary for a legacy prediction."""
     patient_id = user_data.get("auth").id
     try:
@@ -77,7 +78,7 @@ def ensure_archived_report(prediction_id: str, user_data: dict = Depends(require
         raise HTTPException(status_code=500, detail="Unable to prepare this report")
 
 @router.post("/report/{prediction_id}", response_model=ReportResponse)
-def generate_report(request: ReportRequest, prediction_id: str = Path(...)):
+async def generate_report(request: ReportRequest, prediction_id: str = Path(...)):
     try:
         # Look up prediction
         pred_res = supabase.table('predictions').select('*').eq('id', prediction_id).execute()

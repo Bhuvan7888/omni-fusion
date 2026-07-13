@@ -1,7 +1,10 @@
+"""PyTorch architectures used by the Omni-Fusion inference checkpoint."""
+
 import torch
 import torch.nn as nn
 
 class ResBlock1D(nn.Module):
+    """Residual 1D convolution block mapping ``(B, C_in, T)`` to ``(B, C_out, T')``."""
     def __init__(self, in_channels, out_channels, stride=1):
         super().__init__()
         self.conv1 = nn.Conv1d(in_channels, out_channels, kernel_size=5, stride=stride, padding=2, bias=False)
@@ -22,6 +25,12 @@ class ResBlock1D(nn.Module):
         return self.relu(out)
 
 class ResNet1D(nn.Module):
+    """Encode a 12-lead ECG ``(B, 12, 1000)`` into logits or an ECG embedding.
+
+    With its original classifier head this returns raw diagnostic-class logits,
+    not a mortality risk score. In ``InferenceService`` the head is replaced by
+    identity so the fusion model receives the learned ECG embedding.
+    """
     def __init__(self, in_channels, num_classes, depth, dropout):
         super().__init__()
         self.in_channels = 16
@@ -49,6 +58,7 @@ class ResNet1D(nn.Module):
         return self.fc(x)
 
 class VitalsMLP(nn.Module):
+    """Encode scaled tabular vitals ``(B, features)`` into logits or an embedding."""
     def __init__(self, input_dim, hidden_dim, num_layers, dropout):
         super().__init__()
         layers = []
@@ -65,6 +75,7 @@ class VitalsMLP(nn.Module):
         return self.net(x)
 
 class HistoricalGRU(nn.Module):
+    """Encode longitudinal features ``(B, visits, features)`` into an embedding."""
     def __init__(self, input_dim, hidden_dim, num_layers, dropout):
         super().__init__()
         self.gru = nn.GRU(input_size=input_dim, hidden_size=hidden_dim, num_layers=num_layers, batch_first=True, dropout=dropout if num_layers > 1 else 0.0)
@@ -77,6 +88,12 @@ class HistoricalGRU(nn.Module):
         return self.fc(last_out)
 
 class OmniFusionNet(nn.Module):
+    """Fuse ECG, vitals, and optional-history embeddings into two mortality logits.
+
+    Inputs are ``x_ecg=(B, 12, 1000)``, ``x_vitals=(B, 11)``, and
+    ``x_hist=(B, visits, 11)``. Output ``(B, 2)`` contains raw survival and
+    hospital-mortality logits; softmax class 1 is the reported risk score.
+    """
     def __init__(self, model_ecg, model_vitals, model_hist, ecg_dim, vitals_dim, hist_dim):
         super().__init__()
         self.ecg_net = model_ecg

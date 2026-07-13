@@ -47,20 +47,20 @@ export default function PatientOnboarding() {
     setError(null)
     try {
       await api.onboardProfile({
-        role: formData.role,
-        full_name: formData.full_name,
-        date_of_birth: formData.date_of_birth || null,
+        role: 'PATIENT',
+        fullName: formData.full_name,
+        dateOfBirth: formData.date_of_birth || null,
         sex: formData.sex,
-        height_cm: formData.height_cm ? parseFloat(formData.height_cm) : null,
-        weight_kg: formData.weight_kg ? parseFloat(formData.weight_kg) : null,
-        smoking_status: formData.smoking_status,
-        alcohol_use: formData.alcohol_use,
-        exercise_frequency: formData.exercise_frequency,
+        heightCm: formData.height_cm ? parseFloat(formData.height_cm) : null,
+        weightKg: formData.weight_kg ? parseFloat(formData.weight_kg) : null,
+        smokingStatus: formData.smoking_status,
+        alcoholUse: formData.alcohol_use,
+        exerciseFrequency: formData.exercise_frequency,
       })
       // Refresh page to trigger RoleGuard or fetch new profile
       window.location.href = '/patient'
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Unable to create patient profile')
       setLoading(false)
     }
   }

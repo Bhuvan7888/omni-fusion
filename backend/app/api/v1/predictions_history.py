@@ -7,7 +7,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 @router.get("/history", response_model=HistoryResponse)
-def get_history(limit: int = Query(20, le=100), offset: int = Query(0)):
+async def get_history(limit: int = Query(20, le=100), offset: int = Query(0)):
     try:
         # Get count
         count_res = supabase.table('predictions').select('*', count='exact').execute()

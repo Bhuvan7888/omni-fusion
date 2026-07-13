@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.supabase_client import supabase, logger
 from app.core.auth import get_current_user
-from app.models.clinical_schemas import ProfileCreate, ProfileUpdate, ProfileResponse
+from app.models.profile_schemas import ProfileCreate, ProfileUpdate, ProfileResponse
+from app.core.errors import handle_supabase_errors
 
 router = APIRouter()
 
@@ -19,6 +20,7 @@ async def get_my_profile(user_data: dict = Depends(get_current_user)):
     return profile
 
 @router.post("/profiles/onboard", response_model=ProfileResponse)
+@handle_supabase_errors("create profile")
 async def onboard_profile(profile_data: ProfileCreate, user_data: dict = Depends(get_current_user)):
     user = user_data.get("auth")
     existing_profile = user_data.get("profile")
@@ -38,16 +40,13 @@ async def onboard_profile(profile_data: ProfileCreate, user_data: dict = Depends
     if "weight_kg" in data and "height_cm" in data:
         data["bmi"] = calculate_bmi(data["weight_kg"], data["height_cm"])
         
-    try:
-        res = supabase.table("profiles").insert(data).execute()
-        if not res.data:
-            raise Exception("Insertion failed")
-        return res.data[0]
-    except Exception as e:
-        logger.error(f"Error onboarding profile: {e}")
-        raise HTTPException(status_code=500, detail="Failed to create profile")
+    res = supabase.table("profiles").insert(data).execute()
+    if not res.data:
+        raise RuntimeError("Insertion failed")
+    return res.data[0]
 
 @router.put("/profiles/me", response_model=ProfileResponse)
+@handle_supabase_errors("update profile")
 async def update_profile(profile_data: ProfileUpdate, user_data: dict = Depends(get_current_user)):
     user = user_data.get("auth")
     profile = user_data.get("profile")
@@ -62,11 +61,7 @@ async def update_profile(profile_data: ProfileUpdate, user_data: dict = Depends(
     if weight and height:
         data["bmi"] = calculate_bmi(weight, height)
         
-    try:
-        res = supabase.table("profiles").update(data).eq("id", user.id).execute()
-        if not res.data:
-            raise Exception("Update failed")
-        return res.data[0]
-    except Exception as e:
-        logger.error(f"Error updating profile: {e}")
-        raise HTTPException(status_code=500, detail="Failed to update profile")
+    res = supabase.table("profiles").update(data).eq("id", user.id).execute()
+    if not res.data:
+        raise RuntimeError("Update failed")
+    return res.data[0]

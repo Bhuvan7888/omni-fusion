@@ -26,9 +26,9 @@ export default function FileUploadZone({ onSessionCreated }: FileUploadZoneProps
       const res = await api.uploadHistoricalCSV(selectedFile);
       setStatus('success');
       onSessionCreated(res);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setStatus('error');
-      setErrorMessage(err.message || 'Failed to upload CSV');
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to upload CSV');
     }
   };
 

@@ -5,11 +5,16 @@ from fpdf import FPDF
 from app.models.schemas import PredictResponse
 
 class PDFService:
+    """Render immutable prediction data into a temporary clinical PDF."""
     @staticmethod
     def generate_report(predict_res: dict) -> str:
-        """
-        Generates a PDF report and returns the path to the temporary PDF file.
-        predict_res should be a dict of the PredictResponse.
+        """Generate a report and return its temporary filesystem path.
+
+        Args:
+            predict_res: Prediction fields and optional explanation artifacts.
+
+        Returns:
+            Path to a temporary PDF owned by the caller.
         """
         pdf = FPDF()
         pdf.add_page()

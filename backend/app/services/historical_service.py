@@ -6,11 +6,13 @@ from sklearn.impute import KNNImputer
 from app.core.supabase_client import supabase
 
 class HistoricalService:
-    """
-    Values returned by this service are raw clinical units.
-    Scaling is applied exclusively in `InferenceService.predict()`. Do not scale here.
+    """Parse, impute, persist, and aggregate historical CSV uploads.
+
+    Values returned by this service remain in raw clinical units. Scaling is
+    applied exclusively in ``InferenceService.predict``.
     """
     def process_csv_upload(self, csv_bytes: bytes) -> dict:
+        """Process CSV bytes and return a persisted upload-session summary."""
         try:
             df = pd.read_csv(io.BytesIO(csv_bytes))
         except Exception as e:

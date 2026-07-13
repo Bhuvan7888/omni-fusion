@@ -4,6 +4,8 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
 
+HIGH_RISK_THRESHOLD_PCT: float = 60.0
+
 # Force load .env from the backend root before parsing settings
 dotenv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.env')
 load_dotenv(dotenv_path)

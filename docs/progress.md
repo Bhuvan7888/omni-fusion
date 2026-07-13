@@ -115,3 +115,11 @@ This file is the single source of truth for the project's progress. It tracks th
 - [x] [22:17] Resolved `ModuleNotFoundError: No module named 'numpy._core'` by dynamically aliasing `numpy._core` to `numpy.core` in `inference_service.py` to support `joblib` unpickling in older numpy environments.
 - [x] [22:18] Bypassed strict JWT validation for local Supabase keys in `supabase-py` client.
 - [x] [22:19] Successfully ran and verified the full frontend and backend applications locally on ports 3000 and 8000.
+# Phase 15 — Structural consistency refactor
+
+- Split the former clinical router into cohesive link, note, analytics, and
+  patient-record modules while preserving public URLs.
+- Consolidated prediction execution into `/api/v1/predict` for both manual and
+  authenticated flows.
+- Fixed a swallowed-HTTPException bug in link status updates: an invalid link
+  ID now correctly remains a 404 instead of being rewritten as a 500.

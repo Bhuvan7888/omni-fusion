@@ -1,5 +1,7 @@
 #!/bin/bash
 set -e
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT_DIR"
 trap 'echo "Killing servers..."; kill $BACKEND_PID $FRONTEND_PID 2>/dev/null || true' EXIT
 
 echo "Starting Backend..."

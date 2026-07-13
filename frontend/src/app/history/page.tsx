@@ -16,8 +16,8 @@ export default function HistoryPage() {
       try {
         const res = await api.getHistory(20, 0);
         setHistory(res);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load history');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to load history');
       } finally {
         setLoading(false);
       }
@@ -79,29 +79,29 @@ export default function HistoryPage() {
                   </tr>
                 ) : (
                   history.items.map((item) => (
-                    <tr key={item.prediction_id} className="hover:bg-slate-800/50 transition-colors">
+                    <tr key={item.predictionId} className="hover:bg-slate-800/50 transition-colors">
                       <td className="p-4 text-slate-300">
-                        {new Date(item.created_at).toLocaleString()}
+                        {new Date(item.createdAt).toLocaleString()}
                       </td>
                       <td className="p-4 text-slate-500 font-mono text-xs">
-                        {item.prediction_id.split('-')[0]}...
+                        {item.predictionId.split('-')[0]}...
                       </td>
                       <td className="p-4">
                         <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                          item.risk_score > 0.5 ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'
+                          item.riskScore > 0.5 ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'
                         }`}>
-                          {(item.risk_score * 100).toFixed(1)}%
+                          {(item.riskScore * 100).toFixed(1)}%
                         </span>
                       </td>
                       <td className="p-4 text-slate-400">
-                        {item.streams_used.join(', ')}
+                        {item.streamsUsed.join(', ')}
                       </td>
                       <td className="p-4 text-right">
                         {/* Note: the history item model doesn't return the signed url directly because they expire. 
                             Ideally, we'd have a specific /api/v1/report/url endpoint. 
                             For this demo, we'll assume they need to generate a new report if they want to view it, 
                             or we can just show a placeholder if we didn't implement url generation on GET. */}
-                        {item.has_report ? (
+                        {item.hasReport ? (
                           <span className="text-slate-500 italic text-xs">Stored</span>
                         ) : (
                           <span className="text-slate-600 text-xs">-</span>

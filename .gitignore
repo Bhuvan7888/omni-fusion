@@ -31,6 +31,8 @@ build/
 data/raw/
 data/processed/
 models/checkpoints/
+logs/
+xai_outputs/
 
 # OS / Editor
 .DS_Store

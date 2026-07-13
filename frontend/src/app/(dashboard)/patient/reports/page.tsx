@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { FileText, Download, Calendar, Activity, Loader2 } from 'lucide-react'
 import { api } from '@/lib/api'
+import type { StoredPrediction } from '@/lib/types'
 
 export default function PatientReports() {
   const { profile } = useAuth()
-  const [reports, setReports] = useState<any[]>([])
+  const [reports, setReports] = useState<StoredPrediction[]>([])
   const [loading, setLoading] = useState(true)
   const [errorStr, setErrorStr] = useState<string | null>(null)
   const [preparingId, setPreparingId] = useState<string | null>(null)
@@ -35,8 +36,8 @@ export default function PatientReports() {
       let downloadUrl = url
       if (!downloadUrl) {
         const result = await api.ensureReport(predictionId)
-        downloadUrl = result.download_url
-        setReports(current => current.map(item => item.id === predictionId ? { ...item, reports: [{ ...(item.reports?.[0] || {}), download_url: downloadUrl }] } : item))
+        downloadUrl = result.downloadUrl
+        setReports(current => current.map(item => item.id === predictionId ? { ...item, reports: [{ ...(item.reports?.[0] || {id:predictionId,createdAt:item.createdAt,pdfStoragePath:''}), downloadUrl }] } : item))
       }
       if (!downloadUrl) throw new Error('No download URL returned')
       window.open(downloadUrl, '_blank', 'noopener,noreferrer')
@@ -102,21 +103,21 @@ export default function PatientReports() {
                       </h3>
                       <div className="flex items-center text-sm text-slate-400">
                         <Calendar className="w-4 h-4 mr-1.5" />
-                        {new Date(pred.created_at).toLocaleString()}
+                        {new Date(pred.createdAt).toLocaleString()}
                       </div>
                     </div>
                   </div>
 
                   <div className="mt-6 px-4 py-3 bg-slate-950 rounded-2xl border border-slate-800 flex items-center justify-between">
                       <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Risk Score</p>
-                      <p className={`text-lg font-bold ${pred.risk_score > 0.5 ? 'text-red-400' : 'text-emerald-400'}`}>
-                        {(pred.risk_score * 100).toFixed(1)}%
+                      <p className={`text-lg font-bold ${pred.riskScore > 0.5 ? 'text-red-400' : 'text-emerald-400'}`}>
+                        {(pred.riskScore * 100).toFixed(1)}%
                       </p>
                   </div>
 
                     <div className="mt-auto pt-5 grid gap-2">
                         <button 
-                          onClick={() => downloadReport(pred.id, hasReport ? pred.reports[0].download_url : undefined)}
+                          onClick={() => downloadReport(pred.id, hasReport ? pred.reports[0].downloadUrl : undefined)}
                           disabled={preparingId === pred.id}
                           className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center disabled:opacity-60"
                         >
@@ -124,9 +125,9 @@ export default function PatientReports() {
                           {preparingId === pred.id ? 'Preparing PDF...' : hasReport ? 'Download PDF Report' : 'Generate & Download PDF'}
                         </button>
 
-                      {pred.doctor_notes && pred.doctor_notes.length > 0 && (
+                      {pred.doctorNotes.length > 0 && (
                         <button 
-                          onClick={() => downloadDoctorNote(pred.doctor_notes[0].note, pred.doctor_notes[0].created_at)}
+                          onClick={() => downloadDoctorNote(pred.doctorNotes[0].note, pred.doctorNotes[0].createdAt)}
                           className="w-full px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-sm font-medium transition-colors flex items-center justify-center"
                         >
                           <Download className="w-4 h-4 mr-2" />

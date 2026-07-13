@@ -7,10 +7,11 @@ import { Activity, Heart, AlertCircle, TrendingUp, Calendar, FileText } from 'lu
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import type { ClinicalAnalytics } from '@/lib/types'
 
 export default function PatientDashboard() {
   const { profile } = useAuth()
-  const [analytics, setAnalytics] = useState<any>(null)
+  const [analytics, setAnalytics] = useState<ClinicalAnalytics | null>(null)
   const [loading, setLoading] = useState(true)
   const [serviceOffline, setServiceOffline] = useState(false)
 
@@ -33,12 +34,12 @@ export default function PatientDashboard() {
   }
 
   const latestRisk = analytics?.trends?.length 
-    ? analytics.trends[analytics.trends.length - 1].risk_score * 100 
+    ? analytics.trends[analytics.trends.length - 1].riskScore * 100
     : 0
 
-  const chartData = analytics?.trends?.map((t: any) => ({
-    date: new Date(t.created_at).toLocaleDateString(),
-    risk: t.risk_score * 100
+  const chartData = analytics?.trends?.map((t) => ({
+    date: new Date(t.createdAt).toLocaleDateString(),
+    risk: t.riskScore * 100
   })) || []
 
   return (

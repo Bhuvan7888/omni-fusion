@@ -5,10 +5,11 @@ import { useAuth } from '@/components/auth/AuthProvider'
 import { Users, Search, Activity, ChevronRight, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { api } from '@/lib/api'
+import type { Profile } from '@/lib/types'
 
 export default function DoctorPatientsPage() {
   const { profile } = useAuth()
-  const [patients, setPatients] = useState<any[]>([])
+  const [patients, setPatients] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
   const [doctorCode, setDoctorCode] = useState('')
   const [showInvite, setShowInvite] = useState(false)
@@ -19,7 +20,7 @@ export default function DoctorPatientsPage() {
 
       try {
         const [links, code] = await Promise.all([api.getPatients(), api.getDoctorCode()])
-        setPatients((links || []).filter((link: any) => link.status === 'accepted').map((link: any) => link.profiles))
+        setPatients((links || []).filter((link) => link.status === 'accepted').map((link) => link.profiles))
         setDoctorCode(code.code)
       } catch (err) {
         console.error("Error fetching patients:", err)
@@ -77,10 +78,10 @@ export default function DoctorPatientsPage() {
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center font-bold text-slate-300">
-                    {patient.full_name?.charAt(0) || 'P'}
+                    {patient.fullName?.charAt(0) || 'P'}
                   </div>
                   <div>
-                    <h3 className="text-white font-medium">{patient.full_name}</h3>
+                    <h3 className="text-white font-medium">{patient.fullName}</h3>
                     <p className="text-slate-500 text-sm truncate w-32">{patient.email}</p>
                   </div>
                 </div>

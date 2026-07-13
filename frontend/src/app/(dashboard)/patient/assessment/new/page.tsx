@@ -7,14 +7,14 @@ import HistoryTimeline from '@/components/HistoryTimeline';
 import ShapWaterfall from '@/components/ShapWaterfall';
 import EcgHeatmap from '@/components/EcgHeatmap';
 import { api } from '@/lib/api';
-import { PredictResponse, ReportResponse, PredictRequest } from '@/lib/types';
+import { PredictResponse, ReportResponse, PredictRequest, VitalsInput } from '@/lib/types';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth/AuthProvider';
 
 export default function Dashboard() {
   const { profile } = useAuth();
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [historicalData, setHistoricalData] = useState<any>(null);
+  const [historicalData, setHistoricalData] = useState<VitalsInput | null>(null);
   const [isPredicting, setIsPredicting] = useState(false);
   const [prediction, setPrediction] = useState<PredictResponse | null>(null);
   const [report, setReport] = useState<ReportResponse | null>(null);
@@ -31,41 +31,41 @@ export default function Dashboard() {
 
       // Extract vitals from historical if available, otherwise dummy
       const dummyVitals = {
-        anchor_age: historicalData?.anchor_age ?? 65.0,
+        anchorAge: historicalData?.anchorAge ?? 65.0,
         gender: historicalData?.gender ?? 1,
-        Creatinine: historicalData?.Creatinine ?? 1.1,
-        Glucose: historicalData?.Glucose ?? 100.0,
-        Potassium: historicalData?.Potassium ?? 4.0,
-        Sodium: historicalData?.Sodium ?? 139.0,
-        HR: historicalData?.HR ?? 82.0,
-        SBP: historicalData?.SBP ?? 135.0,
-        DBP: historicalData?.DBP ?? 80.0,
-        RR: historicalData?.RR ?? 16.0,
-        O2: historicalData?.O2 ?? 98.0
+        creatinine: historicalData?.creatinine ?? 1.1,
+        glucose: historicalData?.glucose ?? 100.0,
+        potassium: historicalData?.potassium ?? 4.0,
+        sodium: historicalData?.sodium ?? 139.0,
+        hr: historicalData?.hr ?? 82.0,
+        sbp: historicalData?.sbp ?? 135.0,
+        dbp: historicalData?.dbp ?? 80.0,
+        rr: historicalData?.rr ?? 16.0,
+        o2: historicalData?.o2 ?? 98.0
       };
 
       const payload: PredictRequest = {
-        patient_id: profile?.id || "",
+        patientId: profile?.id || "",
         ecg: noisyEcg,
         vitals: dummyVitals,
         historical: historicalData || undefined,
-        upload_session_id: sessionId || undefined
+        uploadSessionId: sessionId || undefined
       };
 
       const pred = await api.runClinicalInference(payload);
       setPrediction(pred);
 
       // Instantly generate report
-      const rep = await api.generateReport(pred.prediction_id, {
-        patient_id: payload.patient_id,
-        shap_data: pred.shap_data,
-        ecg_gradcam_heatmap_b64: pred.ecg_gradcam_heatmap_b64,
-        failure_analysis_summary: pred.failure_analysis_summary
+      const rep = await api.generateReport(pred.predictionId, {
+        patientId: payload.patientId,
+        shapData: pred.shapData,
+        ecgGradcamHeatmapB64: pred.ecgGradcamHeatmapB64,
+        failureAnalysisSummary: pred.failureAnalysisSummary
       });
       setReport(rep);
 
-    } catch (err: any) {
-      setError(err.message || 'Failed to run inference');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to run inference');
     } finally {
       setIsPredicting(false);
     }
@@ -105,9 +105,9 @@ export default function Dashboard() {
               <span className="text-amber-400 font-medium">Note: ECG waveforms are purely synthetic for demo purposes regardless of your upload.</span>
             </p>
             <FileUploadZone onSessionCreated={(res) => {
-              setSessionId(res.session_id);
-              if (res.aggregated_data) {
-                setHistoricalData(res.aggregated_data);
+              setSessionId(res.sessionId);
+              if (res.aggregatedData) {
+                setHistoricalData(res.aggregatedData);
               }
             }} />
           </div>
@@ -150,13 +150,13 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold text-slate-100">
-                    Risk Score: <span className={prediction.risk_score > 0.5 ? 'text-red-400' : 'text-green-400'}>{(prediction.risk_score * 100).toFixed(1)}%</span>
+                    Risk Score: <span className={prediction.riskScore > 0.5 ? 'text-red-400' : 'text-green-400'}>{(prediction.riskScore * 100).toFixed(1)}%</span>
                   </h2>
-                  <p className="text-slate-500 text-sm mt-1">Streams combined: {prediction.streams_used.join(' + ')}</p>
+                  <p className="text-slate-500 text-sm mt-1">Streams combined: {prediction.streamsUsed.join(' + ')}</p>
                 </div>
                 {report && (
                   <a 
-                    href={report.pdf_signed_url} 
+                    href={report.pdfSignedUrl}
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="flex items-center space-x-2 bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg transition-colors border border-slate-700"
@@ -176,7 +176,7 @@ export default function Dashboard() {
                 </div>
               )}
               
-              <ShapWaterfall shapData={prediction.shap_data} />
+              <ShapWaterfall shapData={prediction.shapData} />
               
               <div className="w-full bg-slate-900 rounded-lg p-4 border border-slate-800">
                 <h3 className="text-slate-300 font-semibold mb-4 text-sm">Longitudinal Medical History</h3>
@@ -187,8 +187,8 @@ export default function Dashboard() {
             {/* Right Viewport */}
             <div className="flex flex-col">
               <EcgHeatmap 
-                base64Image={prediction.ecg_gradcam_heatmap_b64}
-                failureAnalysis={prediction.failure_analysis_summary}
+                base64Image={prediction.ecgGradcamHeatmapB64}
+                failureAnalysis={prediction.failureAnalysisSummary}
               />
             </div>
           </section>

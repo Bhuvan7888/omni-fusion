@@ -1,82 +1,65 @@
 export interface VitalsInput {
-  anchor_age: number;
-  gender: number;
-  Creatinine: number;
-  Glucose: number;
-  Potassium: number;
-  Sodium: number;
-  HR: number;
-  SBP: number;
-  DBP: number;
-  RR: number;
-  O2: number;
+  anchorAge: number; gender: number; creatinine: number; glucose: number;
+  potassium: number; sodium: number; hr: number; sbp: number; dbp: number;
+  rr: number; o2: number;
 }
 
-export interface HistoricalInput {
-  anchor_age: number;
-  gender: number;
-  Creatinine: number;
-  Glucose: number;
-  Potassium: number;
-  Sodium: number;
-  HR: number;
-  SBP: number;
-  DBP: number;
-  RR: number;
-  O2: number;
-}
+export type HistoricalInput = VitalsInput;
 
 export interface PredictRequest {
-  patient_id: string;
-  ecg: number[][]; // 12x1000
+  patientId: string;
+  ecg: number[][];
   vitals: VitalsInput;
   historical?: HistoricalInput;
-  upload_session_id?: string;
+  uploadSessionId?: string;
 }
 
 export interface PredictResponse {
-  prediction_id: string;
-  patient_id: string;
-  risk_score: number;
-  shap_data: Record<string, number>;
-  ecg_gradcam_heatmap_b64: string;
-  failure_analysis_summary: string;
-  streams_used: string[];
+  predictionId: string; patientId: string; riskScore: number;
+  shapData: Record<string, number>; ecgGradcamHeatmapB64: string;
+  failureAnalysisSummary: string; streamsUsed: string[];
 }
 
 export interface UploadHistoricalResponse {
-  session_id: string;
-  row_count: number;
-  imputation_summary: Record<string, number>;
-  status: string;
-  aggregated_data?: Record<string, number>;
+  sessionId: string; rowCount: number; imputationSummary: Record<string, number>;
+  status: string; aggregatedData?: VitalsInput;
 }
 
 export interface ReportRequest {
-  patient_id: string;
-  shap_data: Record<string, number>;
-  ecg_gradcam_heatmap_b64: string;
-  failure_analysis_summary: string;
+  patientId: string; shapData: Record<string, number>;
+  ecgGradcamHeatmapB64: string; failureAnalysisSummary: string;
 }
 
 export interface ReportResponse {
-  prediction_id: string;
-  risk_score: number;
-  shap_data: Record<string, number>;
-  failure_analysis_text: string;
-  pdf_storage_path: string;
-  pdf_signed_url: string;
+  predictionId: string; riskScore: number; shapData: Record<string, number>;
+  failureAnalysisText: string; pdfStoragePath: string; pdfSignedUrl: string;
 }
 
 export interface HistoryItem {
-  prediction_id: string;
-  created_at: string;
-  risk_score: number;
-  streams_used: string[];
-  has_report: boolean;
+  predictionId: string; createdAt: string; riskScore: number;
+  streamsUsed: string[]; hasReport: boolean;
 }
+export interface HistoryResponse { items: HistoryItem[]; total: number }
 
-export interface HistoryResponse {
-  items: HistoryItem[];
-  total: number;
+export interface Profile {
+  id: string; role: 'PATIENT' | 'DOCTOR'; fullName?: string; email?: string;
+  age?: number; bmi?: number; smokingStatus?: string; specialization?: string;
+  hospital?: string; phone?: string;
 }
+export interface ProfileInput extends Omit<Profile, 'id'> {
+  dateOfBirth?: string | null; sex?: string; heightCm?: number | null;
+  weightKg?: number | null; alcoholUse?: string; exerciseFrequency?: string;
+  medicalRegistrationNumber?: string; bio?: string;
+}
+export interface AnalyticsTrend { createdAt: string; riskScore: number }
+export interface ClinicalAnalytics {
+  trends?: AnalyticsTrend[]; averageRisk?: number; highestRisk?: number;
+  totalPatients?: number; averageRiskAll?: number; highRiskPatients?: number;
+}
+export interface DoctorProfile extends Profile { role: 'DOCTOR' }
+export interface DoctorPatientLink { id: string; patientId: string; doctorId: string; status: 'pending' | 'accepted' | 'rejected'; createdAt: string; profiles: Profile }
+export interface DoctorNote { id: string; note: string; createdAt: string; priority?: string }
+export interface StoredReport { id: string; createdAt: string; pdfStoragePath: string; downloadUrl?: string; shapData?: Record<string, number>; failureAnalysisText?: string; ecgImageUrl?: string }
+export interface StoredPrediction { id: string; createdAt: string; riskScore: number; streamsUsed?: string[]; reports: StoredReport[]; doctorNotes: DoctorNote[] }
+export interface PatientRecord { profile: Profile; predictions: StoredPrediction[] }
+export interface DoctorConnection { message: string; doctor: DoctorProfile }

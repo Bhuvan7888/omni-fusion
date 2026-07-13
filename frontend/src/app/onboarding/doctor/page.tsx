@@ -37,10 +37,10 @@ export default function DoctorOnboarding() {
     setLoading(true)
     setError(null)
     try {
-      await api.onboardProfile(formData)
+      await api.onboardProfile({ role: 'DOCTOR', fullName: formData.full_name, specialization: formData.specialization, hospital: formData.hospital, medicalRegistrationNumber: formData.medical_registration_number, phone: formData.phone, bio: formData.bio })
       window.location.href = '/doctor'
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Unable to create doctor profile')
       setLoading(false)
     }
   }

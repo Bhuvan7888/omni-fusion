@@ -5,11 +5,29 @@ import {
   ReportRequest,
   ReportResponse,
   HistoryResponse,
+  ClinicalAnalytics, DoctorConnection, DoctorPatientLink, PatientRecord, Profile,
+  ProfileInput, StoredPrediction, VitalsInput,
 } from './types';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
 import { createClient } from './supabase/client';
+
+type SnakeVitals = { anchor_age:number; gender:number; Creatinine:number; Glucose:number; Potassium:number; Sodium:number; HR:number; SBP:number; DBP:number; RR:number; O2:number };
+type RawPrediction = { prediction_id:string; patient_id:string; risk_score:number; shap_data:Record<string,number>; ecg_gradcam_heatmap_b64:string; failure_analysis_summary:string; streams_used:string[] };
+type RawUpload = { session_id:string; row_count:number; imputation_summary:Record<string,number>; status:string; aggregated_data?:SnakeVitals };
+type RawReportResponse = { prediction_id:string; risk_score:number; shap_data:Record<string,number>; failure_analysis_text:string; pdf_storage_path:string; pdf_signed_url:string };
+type RawStoredPrediction = { id:string; created_at:string; risk_score:number; streams_used?:string[]; reports?:Array<{id:string;created_at:string;pdf_storage_path:string;download_url?:string;shap_data?:Record<string,number>;failure_analysis_text?:string;ecg_image_url?:string}>; doctor_notes?:Array<{id:string;note:string;created_at:string;priority?:string}> };
+type RawProfile = Record<string, unknown> & { id:string; role:'PATIENT'|'DOCTOR' };
+type RawLink = { id:string; patient_id:string; doctor_id:string; status:'pending'|'accepted'|'rejected'; created_at:string; profiles:RawProfile };
+
+const mapVitalsToWire = (value: VitalsInput): SnakeVitals => ({ anchor_age:value.anchorAge,gender:value.gender,Creatinine:value.creatinine,Glucose:value.glucose,Potassium:value.potassium,Sodium:value.sodium,HR:value.hr,SBP:value.sbp,DBP:value.dbp,RR:value.rr,O2:value.o2 });
+const mapVitalsFromWire = (value: SnakeVitals): VitalsInput => ({ anchorAge:value.anchor_age,gender:value.gender,creatinine:value.Creatinine,glucose:value.Glucose,potassium:value.Potassium,sodium:value.Sodium,hr:value.HR,sbp:value.SBP,dbp:value.DBP,rr:value.RR,o2:value.O2 });
+const mapPredictRequest = (value: PredictRequest) => ({ patient_id:value.patientId,ecg:value.ecg,vitals:mapVitalsToWire(value.vitals),historical:value.historical?mapVitalsToWire(value.historical):undefined,upload_session_id:value.uploadSessionId });
+const mapPredictionResponse = (raw: RawPrediction): PredictResponse => ({ predictionId:raw.prediction_id,patientId:raw.patient_id,riskScore:raw.risk_score,shapData:raw.shap_data,ecgGradcamHeatmapB64:raw.ecg_gradcam_heatmap_b64,failureAnalysisSummary:raw.failure_analysis_summary,streamsUsed:raw.streams_used });
+const mapProfile = (raw: RawProfile): Profile => ({ id:raw.id,role:raw.role,fullName:raw.full_name as string|undefined,email:raw.email as string|undefined,age:raw.age as number|undefined,bmi:raw.bmi as number|undefined,smokingStatus:raw.smoking_status as string|undefined,specialization:raw.specialization as string|undefined,hospital:raw.hospital as string|undefined,phone:raw.phone as string|undefined });
+const mapProfileInput = (value: ProfileInput) => ({ role:value.role,full_name:value.fullName,email:value.email,date_of_birth:value.dateOfBirth,sex:value.sex,height_cm:value.heightCm,weight_kg:value.weightKg,smoking_status:value.smokingStatus,alcohol_use:value.alcoholUse,exercise_frequency:value.exerciseFrequency,medical_registration_number:value.medicalRegistrationNumber,specialization:value.specialization,hospital:value.hospital,phone:value.phone,bio:value.bio });
+const mapStoredPrediction = (raw: RawStoredPrediction): StoredPrediction => ({ id:raw.id,createdAt:raw.created_at,riskScore:raw.risk_score,streamsUsed:raw.streams_used,reports:(raw.reports||[]).map(item=>({id:item.id,createdAt:item.created_at,pdfStoragePath:item.pdf_storage_path,downloadUrl:item.download_url,shapData:item.shap_data,failureAnalysisText:item.failure_analysis_text,ecgImageUrl:item.ecg_image_url})),doctorNotes:(raw.doctor_notes||[]).map(item=>({id:item.id,note:item.note,createdAt:item.created_at,priority:item.priority})) });
 
 class ApiClient {
   private async request<T>(endpoint: string, options: RequestInit): Promise<T> {
@@ -44,92 +62,102 @@ class ApiClient {
   async uploadHistoricalCSV(file: File): Promise<UploadHistoricalResponse> {
     const formData = new FormData();
     formData.append('file', file);
-    return this.request<UploadHistoricalResponse>('/api/v1/upload-historical', {
+    const raw = await this.request<RawUpload>('/api/v1/upload-historical', {
       method: 'POST',
       body: formData,
     });
+    return {sessionId:raw.session_id,rowCount:raw.row_count,imputationSummary:raw.imputation_summary,status:raw.status,aggregatedData:raw.aggregated_data?mapVitalsFromWire(raw.aggregated_data):undefined};
   }
 
   async runInference(payload: PredictRequest): Promise<PredictResponse> {
-    return this.request<PredictResponse>('/api/v1/predict', {
+    const raw = await this.request<RawPrediction>('/api/v1/predict', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(mapPredictRequest(payload)),
     });
+    return mapPredictionResponse(raw);
   }
 
   async generateReport(predictionId: string, payload: ReportRequest): Promise<ReportResponse> {
-    return this.request<ReportResponse>(`/api/v1/report/${predictionId}`, {
+    const raw = await this.request<RawReportResponse>(`/api/v1/report/${predictionId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({patient_id:payload.patientId,shap_data:payload.shapData,ecg_gradcam_heatmap_b64:payload.ecgGradcamHeatmapB64,failure_analysis_summary:payload.failureAnalysisSummary}),
     });
+    return {predictionId:raw.prediction_id,riskScore:raw.risk_score,shapData:raw.shap_data,failureAnalysisText:raw.failure_analysis_text,pdfStoragePath:raw.pdf_storage_path,pdfSignedUrl:raw.pdf_signed_url};
   }
 
   async getHistory(limit: number = 20, offset: number = 0): Promise<HistoryResponse> {
-    return this.request<HistoryResponse>(`/api/v1/history?limit=${limit}&offset=${offset}`, {
+    const raw = await this.request<{items:Array<{prediction_id:string;created_at:string;risk_score:number;streams_used:string[];has_report:boolean}>;total:number}>(`/api/v1/history?limit=${limit}&offset=${offset}`, {
       method: 'GET',
     });
+    return {total:raw.total,items:raw.items.map(item=>({predictionId:item.prediction_id,createdAt:item.created_at,riskScore:item.risk_score,streamsUsed:item.streams_used,hasReport:item.has_report}))};
   }
 
   // PLATFORM EXTENSION ENDPOINTS
 
-  async onboardProfile(data: any): Promise<any> {
-    return this.request<any>('/api/v1/profiles/onboard', {
+  async onboardProfile(data: ProfileInput): Promise<Profile> {
+    const raw = await this.request<RawProfile>('/api/v1/profiles/onboard', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      body: JSON.stringify(mapProfileInput(data)),
     });
+    return mapProfile(raw);
   }
 
-  async getMyProfile(): Promise<any> {
-    return this.request<any>('/api/v1/profiles/me', {
+  async getMyProfile(): Promise<Profile> {
+    return mapProfile(await this.request<RawProfile>('/api/v1/profiles/me', {
       method: 'GET',
-    });
+    }));
   }
 
   async runClinicalInference(payload: PredictRequest): Promise<PredictResponse> {
-    return this.request<PredictResponse>('/api/v1/clinical/predict', {
+    const raw = await this.request<RawPrediction>('/api/v1/predict', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(mapPredictRequest(payload)),
     });
+    return mapPredictionResponse(raw);
   }
 
-  async getClinicalAnalytics(): Promise<any> {
-    return this.request<any>('/api/v1/clinical/analytics', {
+  async getClinicalAnalytics(): Promise<ClinicalAnalytics> {
+    const raw = await this.request<Record<string, unknown>>('/api/v1/clinical/analytics', {
       method: 'GET',
     });
+    return {trends:(raw.trends as Array<{created_at:string;risk_score:number}>|undefined)?.map(item=>({createdAt:item.created_at,riskScore:item.risk_score})),averageRisk:raw.average_risk as number|undefined,highestRisk:raw.highest_risk as number|undefined,totalPatients:raw.total_patients as number|undefined,averageRiskAll:raw.average_risk_all as number|undefined,highRiskPatients:raw.high_risk_patients as number|undefined};
   }
 
-  async getMyReports(): Promise<any[]> {
-    return this.request<any[]>('/api/v1/reports/mine', {
+  async getMyReports(): Promise<StoredPrediction[]> {
+    const raw = await this.request<RawStoredPrediction[]>('/api/v1/reports/mine', {
       method: 'GET',
     });
+    return raw.map(mapStoredPrediction);
   }
 
-  async ensureReport(predictionId: string): Promise<{ download_url: string; generated: boolean }> {
-    return this.request<{ download_url: string; generated: boolean }>(`/api/v1/reports/${predictionId}/ensure`, { method: 'POST' });
+  async ensureReport(predictionId: string): Promise<{ downloadUrl: string; generated: boolean }> {
+    const raw = await this.request<{ download_url: string; generated: boolean }>(`/api/v1/reports/${predictionId}/ensure`, { method: 'POST' });
+    return {downloadUrl:raw.download_url,generated:raw.generated};
   }
 
-  async getPatients(): Promise<any> {
-    return this.request<any>('/api/v1/clinical/patients', {
+  async getPatients(): Promise<DoctorPatientLink[]> {
+    const raw = await this.request<RawLink[]>('/api/v1/clinical/patients', {
       method: 'GET',
     });
+    return raw.map(item=>({id:item.id,patientId:item.patient_id,doctorId:item.doctor_id,status:item.status,createdAt:item.created_at,profiles:mapProfile(item.profiles)}));
   }
 
-  async requestLink(doctorId: string): Promise<any> {
-    return this.request<any>(`/api/v1/clinical/link?doctor_id=${doctorId}`, {
+  async requestLink(doctorId: string): Promise<unknown> {
+    return this.request<unknown>(`/api/v1/clinical/link?doctor_id=${doctorId}`, {
       method: 'POST',
     });
   }
 
-  async updateLinkStatus(linkId: string, status: 'accepted' | 'rejected'): Promise<any> {
-    return this.request<any>(`/api/v1/clinical/link/${linkId}`, {
+  async updateLinkStatus(linkId: string, status: 'accepted' | 'rejected'): Promise<unknown> {
+    return this.request<unknown>(`/api/v1/clinical/link/${linkId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
@@ -140,12 +168,14 @@ class ApiClient {
     return this.request<{ code: string }>('/api/v1/clinical/doctor-code', { method: 'GET' });
   }
 
-  async connectByDoctorCode(code: string): Promise<any> {
-    return this.request<any>(`/api/v1/clinical/connect-by-code?code=${encodeURIComponent(code)}`, { method: 'POST' });
+  async connectByDoctorCode(code: string): Promise<DoctorConnection> {
+    const raw = await this.request<{message:string;doctor:RawProfile}>(`/api/v1/clinical/connect-by-code?code=${encodeURIComponent(code)}`, { method: 'POST' });
+    return {message:raw.message,doctor:mapProfile(raw.doctor) as DoctorConnection['doctor']};
   }
 
-  async getPatientRecord(patientId: string): Promise<any> {
-    return this.request<any>(`/api/v1/clinical/patients/${patientId}/record`, { method: 'GET' });
+  async getPatientRecord(patientId: string): Promise<PatientRecord> {
+    const raw = await this.request<{profile:RawProfile;predictions:RawStoredPrediction[]}>(`/api/v1/clinical/patients/${patientId}/record`, { method: 'GET' });
+    return {profile:mapProfile(raw.profile),predictions:raw.predictions.map(mapStoredPrediction)};
   }
 }
 

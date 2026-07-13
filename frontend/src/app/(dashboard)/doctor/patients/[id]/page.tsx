@@ -8,6 +8,7 @@ import { Loader2, ArrowLeft, FileText, User, Calendar, Activity, Plus } from 'lu
 import Link from 'next/link'
 import { api } from '@/lib/api'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import type { DoctorNote, Profile, StoredPrediction } from '@/lib/types'
 
 export default function PatientDetailsPage() {
   const { id } = useParams()
@@ -15,8 +16,8 @@ export default function PatientDetailsPage() {
   const { profile } = useAuth()
   const supabase = createClient()
 
-  const [patient, setPatient] = useState<any>(null)
-  const [predictions, setPredictions] = useState<any[]>([])
+  const [patient, setPatient] = useState<Profile | null>(null)
+  const [predictions, setPredictions] = useState<StoredPrediction[]>([])
   const [loading, setLoading] = useState(true)
   
   const [noteText, setNoteText] = useState('')
@@ -63,7 +64,7 @@ export default function PatientDetailsPage() {
         if (p.id === activePredictionId) {
           return {
             ...p,
-            doctor_notes: [...(p.doctor_notes || []), { note: noteText, created_at: new Date().toISOString() }]
+            doctorNotes: [...p.doctorNotes, { id: `local-${Date.now()}`, note: noteText, createdAt: new Date().toISOString() }]
           }
         }
         return p
@@ -104,7 +105,7 @@ export default function PatientDetailsPage() {
           <User className="w-10 h-10" />
         </div>
         <div className="flex-1 text-center md:text-left">
-          <h1 className="text-3xl font-bold text-white mb-2">{patient?.full_name}</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">{patient?.fullName}</h1>
           <p className="text-slate-400">{patient?.email}</p>
         </div>
         <div className="flex gap-4">
@@ -119,7 +120,7 @@ export default function PatientDetailsPage() {
         </div>
       </div>
 
-      {predictions.length > 0 && <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 mb-8 shadow-lg"><h2 className="text-lg font-semibold mb-5">Longitudinal Risk History</h2><div className="h-64"><ResponsiveContainer width="100%" height="100%"><LineChart data={[...predictions].reverse().map(item => ({ date: new Date(item.created_at).toLocaleDateString(), risk: item.risk_score * 100 }))}><XAxis dataKey="date" stroke="#78909a" fontSize={11}/><YAxis stroke="#78909a" fontSize={11}/><Tooltip/><Line type="monotone" dataKey="risk" stroke="#16b9a7" strokeWidth={3} dot={{fill:'#16b9a7'}}/></LineChart></ResponsiveContainer></div></div>}
+      {predictions.length > 0 && <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 mb-8 shadow-lg"><h2 className="text-lg font-semibold mb-5">Longitudinal Risk History</h2><div className="h-64"><ResponsiveContainer width="100%" height="100%"><LineChart data={[...predictions].reverse().map(item => ({ date: new Date(item.createdAt).toLocaleDateString(), risk: item.riskScore * 100 }))}><XAxis dataKey="date" stroke="#78909a" fontSize={11}/><YAxis stroke="#78909a" fontSize={11}/><Tooltip/><Line type="monotone" dataKey="risk" stroke="#16b9a7" strokeWidth={3} dot={{fill:'#16b9a7'}}/></LineChart></ResponsiveContainer></div></div>}
 
       <h2 className="text-xl font-bold text-slate-100 mb-4 flex items-center">
         <Activity className="w-5 h-5 mr-2 text-emerald-400" />
@@ -134,7 +135,7 @@ export default function PatientDetailsPage() {
         <div className="space-y-6">
           {predictions.map(pred => {
             const hasReport = pred.reports && pred.reports.length > 0
-            const hasNotes = pred.doctor_notes && pred.doctor_notes.length > 0
+            const hasNotes = pred.doctorNotes.length > 0
             
             return (
               <div key={pred.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-md">
@@ -142,15 +143,15 @@ export default function PatientDetailsPage() {
                   <div>
                     <div className="flex items-center text-slate-400 text-sm mb-2">
                       <Calendar className="w-4 h-4 mr-2" />
-                      {new Date(pred.created_at).toLocaleString()}
+                      {new Date(pred.createdAt).toLocaleString()}
                     </div>
                     <h3 className="text-lg font-medium text-white">
-                      Risk Score: {(pred.risk_score * 100).toFixed(1)}%
+                      Risk Score: {(pred.riskScore * 100).toFixed(1)}%
                     </h3>
                   </div>
                   {hasReport && (
                     <button 
-                      onClick={() => downloadReport(pred.reports[0].download_url)}
+                      onClick={() => downloadReport(pred.reports[0].downloadUrl || '')}
                       className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm font-medium transition-colors flex items-center"
                     >
                       <FileText className="w-4 h-4 mr-2" />
@@ -159,10 +160,10 @@ export default function PatientDetailsPage() {
                   )}
                 </div>
 
-                {pred.streams_used?.length > 0 && <div className="mb-4 flex flex-wrap gap-2">{pred.streams_used.map((stream: string) => <span key={stream} className="px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-500 text-xs font-semibold">{stream}</span>)}</div>}
-                {pred.reports?.[0]?.shap_data && <div className="mb-5"><h4 className="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider">Contributing Clinical Factors</h4><div className="grid grid-cols-2 md:grid-cols-3 gap-2">{Object.entries(pred.reports[0].shap_data).sort((a: any,b: any) => Math.abs(b[1])-Math.abs(a[1])).slice(0,9).map(([feature,value]: any) => <div key={feature} className="bg-slate-950 border border-slate-800 rounded-xl p-3"><p className="text-xs text-slate-500 truncate">{feature}</p><p className={`font-mono font-semibold mt-1 ${value > 0 ? 'text-red-400' : 'text-emerald-500'}`}>{Number(value).toFixed(4)}</p></div>)}</div></div>}
-                {pred.reports?.[0]?.failure_analysis_text && <div className="mb-5 bg-amber-500/5 border border-amber-500/20 rounded-xl p-4"><h4 className="text-sm font-semibold mb-1">Model Analysis</h4><p className="text-sm text-slate-500">{pred.reports[0].failure_analysis_text}</p></div>}
-                {pred.reports?.[0]?.ecg_image_url && <div className="mb-5"><h4 className="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider">ECG Explainability Heatmap</h4><img src={pred.reports[0].ecg_image_url} alt="ECG model attention heatmap" className="w-full rounded-2xl border border-slate-800 bg-white" /></div>}
+                {pred.streamsUsed?.length && <div className="mb-4 flex flex-wrap gap-2">{pred.streamsUsed.map((stream) => <span key={stream} className="px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-500 text-xs font-semibold">{stream}</span>)}</div>}
+                {pred.reports?.[0]?.shapData && <div className="mb-5"><h4 className="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider">Contributing Clinical Factors</h4><div className="grid grid-cols-2 md:grid-cols-3 gap-2">{Object.entries(pred.reports[0].shapData).sort((a,b) => Math.abs(b[1])-Math.abs(a[1])).slice(0,9).map(([feature,value]) => <div key={feature} className="bg-slate-950 border border-slate-800 rounded-xl p-3"><p className="text-xs text-slate-500 truncate">{feature}</p><p className={`font-mono font-semibold mt-1 ${value > 0 ? 'text-red-400' : 'text-emerald-500'}`}>{value.toFixed(4)}</p></div>)}</div></div>}
+                {pred.reports?.[0]?.failureAnalysisText && <div className="mb-5 bg-amber-500/5 border border-amber-500/20 rounded-xl p-4"><h4 className="text-sm font-semibold mb-1">Model Analysis</h4><p className="text-sm text-slate-500">{pred.reports[0].failureAnalysisText}</p></div>}
+                {pred.reports?.[0]?.ecgImageUrl && <div className="mb-5"><h4 className="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider">ECG Explainability Heatmap</h4><img src={pred.reports[0].ecgImageUrl} alt="ECG model attention heatmap" className="w-full rounded-2xl border border-slate-800 bg-white" /></div>}
 
                 {/* Doctor Notes Section */}
                 <div className="mt-4">
@@ -170,7 +171,7 @@ export default function PatientDetailsPage() {
                   
                   {hasNotes ? (
                     <div className="space-y-3 mb-4">
-                      {pred.doctor_notes.map((n: any, idx: number) => (
+                      {pred.doctorNotes.map((n: DoctorNote, idx: number) => (
                         <div key={idx} className="bg-slate-950 border border-slate-800 p-4 rounded-xl text-slate-300 text-sm">
                           {n.note}
                         </div>

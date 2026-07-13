@@ -1,3 +1,5 @@
+"""Load validated artifacts and produce multimodal risk explanations."""
+
 import os
 import json
 import base64
@@ -24,6 +26,7 @@ from app.models.schemas import PredictRequest, PredictResponse
 device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
 
 class InferenceService:
+    """Singleton inference facade around the validated Omni-Fusion checkpoint."""
     _instance = None
 
     def __new__(cls):
@@ -98,6 +101,22 @@ class InferenceService:
         print("InferenceService initialization complete.", flush=True)
 
     def predict(self, req: PredictRequest) -> PredictResponse:
+        """Predict hospital mortality probability and explanation artifacts.
+
+        Raw vitals and historical values are transformed exactly once with the
+        Phase 13 fitted ``StandardScaler`` in its persisted feature order. The
+        ECG stays in waveform space. Kernel SHAP uses the persisted Phase 13
+        vitals background, paired with zero history to represent unavailable
+        longitudinal data. Grad-CAM targets mortality class 1 on the final ECG
+        residual block.
+
+        Args:
+            req: Validated ECG, current vitals, and optional historical inputs.
+
+        Returns:
+            A response whose ``risk_score`` is the softmax probability of
+            ``hospital_expire_flag`` (class 1), plus SHAP and ECG Grad-CAM data.
+        """
         vitals_arr_raw = np.array([[getattr(req.vitals, c) for c in self.scaler_feature_order]], dtype=np.float32)
         
         # Scale vitals

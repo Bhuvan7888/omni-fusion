@@ -8,7 +8,18 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from app.core.config import settings
-from app.api.v1 import health, predict, historical, reports, history, profiles, clinical
+from app.api.v1 import (
+    analytics,
+    data_upload,
+    doctor_links,
+    doctor_notes,
+    health,
+    patient_records,
+    predict,
+    predictions_history,
+    profiles,
+    reports,
+)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -54,13 +65,15 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Wire up routers
 app.include_router(health.router, prefix="/api/v1", tags=["System"])
 app.include_router(predict.router, prefix="/api/v1", tags=["Inference"])
-app.include_router(historical.router, prefix="/api/v1", tags=["Data Upload"])
+app.include_router(data_upload.router, prefix="/api/v1", tags=["Data Upload"])
 app.include_router(reports.router, prefix="/api/v1", tags=["Reports"])
-app.include_router(history.router, prefix="/api/v1", tags=["History"])
+app.include_router(predictions_history.router, prefix="/api/v1", tags=["History"])
 app.include_router(profiles.router, prefix="/api/v1", tags=["Profiles"])
-app.include_router(clinical.router, prefix="/api/v1/clinical", tags=["Clinical"])
+app.include_router(doctor_links.router, prefix="/api/v1/clinical", tags=["Clinical"])
+app.include_router(doctor_notes.router, prefix="/api/v1/clinical", tags=["Clinical"])
+app.include_router(analytics.router, prefix="/api/v1/clinical", tags=["Clinical"])
+app.include_router(patient_records.router, prefix="/api/v1/clinical", tags=["Clinical"])
 
 @app.on_event("startup")
 def startup_event():
     logger.info("Application Startup Complete: Omni-Fusion Backend is Ready.")
-
