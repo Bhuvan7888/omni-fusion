@@ -45,3 +45,12 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Demo Credentials
+DEMO_CREDENTIALS.local.md
+
+# Additional ignores
+*.csv
+verification_logs/
+*.onnx
+

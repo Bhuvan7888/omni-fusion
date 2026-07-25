@@ -61,6 +61,10 @@ export default function DoctorDashboard() {
           <h1 className="text-3xl font-bold text-slate-100">Overview</h1>
           <p className="text-slate-400 mt-1">Clinical prediction summary for {profile?.full_name}</p>
         </div>
+        <Link href="/doctor/epidemiology" className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl transition-colors shadow-lg">
+          <Activity className="w-4 h-4" />
+          <span className="font-medium text-sm">Epidemiology Map</span>
+        </Link>
       </header>
 
       <div className="bg-gradient-to-r from-emerald-500/10 to-blue-500/10 border border-emerald-500/20 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center gap-4">

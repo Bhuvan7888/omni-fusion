@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from app.core.supabase_client import supabase, logger
 from app.core.auth import get_current_user
 from app.models.profile_schemas import ProfileCreate, ProfileUpdate, ProfileResponse
 from app.core.errors import handle_supabase_errors
+from app.core.limiter import limiter
+from app.models.enums import Role
 
 router = APIRouter()
 
@@ -20,8 +22,9 @@ async def get_my_profile(user_data: dict = Depends(get_current_user)):
     return profile
 
 @router.post("/profiles/onboard", response_model=ProfileResponse)
+@limiter.limit("5/minute")
 @handle_supabase_errors("create profile")
-async def onboard_profile(profile_data: ProfileCreate, user_data: dict = Depends(get_current_user)):
+async def onboard_profile(request: Request, profile_data: ProfileCreate, user_data: dict = Depends(get_current_user)):
     user = user_data.get("auth")
     existing_profile = user_data.get("profile")
     
@@ -29,6 +32,15 @@ async def onboard_profile(profile_data: ProfileCreate, user_data: dict = Depends
         raise HTTPException(status_code=400, detail="Profile already exists")
         
     data = profile_data.model_dump(exclude_unset=True)
+    
+    # Validate Role
+    if data.get("role") not in [Role.PATIENT.value, Role.DOCTOR.value, Role.RESEARCHER.value]:
+        raise HTTPException(status_code=400, detail="Invalid role")
+        
+    if data.get("role") == Role.DOCTOR.value:
+        if not data.get("medical_registration_number") or not data.get("medical_registration_number").strip():
+            raise HTTPException(status_code=400, detail="medical_registration_number is required for DOCTOR role")
+            
     data["id"] = user.id
     
     # Auto-populate email from the authenticated user

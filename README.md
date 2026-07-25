@@ -132,6 +132,12 @@ The small validated runtime checkpoint at
 run inference without retraining; Git LFS is not available in the validated
 environment. Manual utilities live under `scripts/`.
 
+## Submission Deliverables (Phase 21)
+- **Kaggle Manuscript**: `OmniFusion_Report.md` details the technical architecture and the multimodal ablation study.
+- **SIH Pitch Deck**: `OmniFusion_Pitch.md` outlines the 10-slide structure and live demo runbook.
+- **Compliance**: `SECURITY.md` documents FHIR R4 mapping, simulated ABDM integrations, and RLS security practices.
+- **Ablation Study**: `training_scripts/09_ablation_study.py` demonstrates the resilience of the late-fusion routing mechanism.
+
 ## License
 
 See [LICENSE](./LICENSE) for details (MIT).

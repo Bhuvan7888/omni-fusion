@@ -10,7 +10,7 @@ BACKEND_PID=$!
 
 echo "Starting Frontend..."
 cd frontend
-npm run start &
+NEXT_PUBLIC_E2E_TEST=true npm run start &
 FRONTEND_PID=$!
 
 echo "Waiting for servers to start..."

@@ -33,13 +33,21 @@ class PredictRequest(BaseModel):
     vitals: VitalsInput
     historical: Optional[HistoricalInput] = None
     upload_session_id: Optional[str] = None
+    offline_client_id: Optional[str] = None
+
+class PredictCounterfactualRequest(BaseModel):
+    base_request: PredictRequest
+    overrides: Dict[str, float]
 
 class PredictResponse(BaseModel):
     prediction_id: str = ""
     patient_id: str
     risk_score: float
+    triage_tier: str
     shap_data: Dict[str, float]
     ecg_gradcam_heatmap_b64: str
+    ecg_gradcam_data: Optional[List[float]] = None
+    raw_ecg: Optional[List[List[float]]] = None
     failure_analysis_summary: str
     streams_used: List[str]
 
@@ -73,4 +81,12 @@ class ReportRequest(BaseModel):
     patient_id: str
     shap_data: Dict[str, float]
     ecg_gradcam_heatmap_b64: str
+    ecg_gradcam_data: Optional[List[float]] = None
+    raw_ecg: Optional[List[List[float]]] = None
     failure_analysis_summary: str
+
+class CopilotRequest(BaseModel):
+    prediction_id: str
+
+class CopilotResponse(BaseModel):
+    soap_note: str

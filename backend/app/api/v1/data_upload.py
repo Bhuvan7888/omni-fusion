@@ -1,13 +1,20 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Request, Depends, BackgroundTasks
 from app.services.historical_service import historical_service
 from app.models.schemas import UploadHistoricalResponse
+from app.core.limiter import limiter
+from app.core.auth import get_current_user
 import logging
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 @router.post("/upload-historical", response_model=UploadHistoricalResponse)
-async def upload_historical(file: UploadFile = File(...)):
+@limiter.limit("5/minute")
+async def upload_historical(
+    request: Request,
+    file: UploadFile = File(...),
+    user_data: dict = Depends(get_current_user)
+):
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="Only CSV files are supported.")
         

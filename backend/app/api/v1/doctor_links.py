@@ -1,6 +1,7 @@
 """Doctor-patient discovery, connection, and listing endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from app.core.limiter import limiter
 
 from app.core.auth import require_role
 from app.core.errors import handle_supabase_errors
@@ -22,8 +23,9 @@ async def get_doctor_code(user_data: dict = Depends(require_role([Role.DOCTOR]))
 
 
 @router.post("/connect-by-code")
+@limiter.limit("5/minute")
 @handle_supabase_errors("connect patient by doctor code")
-async def connect_by_code(code: str, user_data: dict = Depends(require_role([Role.PATIENT]))):
+async def connect_by_code(request: Request, code: str, user_data: dict = Depends(require_role([Role.PATIENT]))):
     patient_id = user_data.get("auth").id
     normalized = code.strip().upper()
     doctors = supabase.table("profiles").select("id,full_name,specialization,hospital").eq("role", Role.DOCTOR.value).execute()

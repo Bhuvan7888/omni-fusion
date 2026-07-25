@@ -3,30 +3,36 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import time
 import logging
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from app.core.config import settings
+from app.core.limiter import limiter
+from slowapi import _rate_limit_exceeded_handler
 from app.api.v1 import (
     analytics,
     data_upload,
     doctor_links,
     doctor_notes,
     health,
+    notifications,
     patient_records,
     predict,
     predictions_history,
     profiles,
     reports,
+    copilot,
+    live_monitor,
+    abdm,
+    epidemiology,
+    chat,
 )
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("omni_fusion")
 
-# Rate Limiter
-limiter = Limiter(key_func=get_remote_address, default_limits=["20/minute"])
+# Rate Limiter is imported from app.core.limiter
 
 app = FastAPI(
     title="Omni-Fusion Backend",
@@ -35,6 +41,7 @@ app = FastAPI(
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 # CORS configuration
 app.add_middleware(
@@ -73,6 +80,12 @@ app.include_router(doctor_links.router, prefix="/api/v1/clinical", tags=["Clinic
 app.include_router(doctor_notes.router, prefix="/api/v1/clinical", tags=["Clinical"])
 app.include_router(analytics.router, prefix="/api/v1/clinical", tags=["Clinical"])
 app.include_router(patient_records.router, prefix="/api/v1/clinical", tags=["Clinical"])
+app.include_router(notifications.router, prefix="/api/v1/clinical", tags=["Clinical"])
+app.include_router(chat.router, prefix="/api/v1", tags=["Chat"])
+app.include_router(copilot.router, prefix="/api/v1", tags=["Copilot"])
+app.include_router(live_monitor.router, prefix="/api/v1", tags=["Live Monitor"])
+app.include_router(abdm.router, prefix="/api/v1/abdm", tags=["ABDM"])
+app.include_router(epidemiology.router, prefix="/api/v1/epidemiology", tags=["Epidemiology"])
 
 @app.on_event("startup")
 def startup_event():

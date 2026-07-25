@@ -5,6 +5,7 @@ import { FileText, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { HistoryResponse } from '@/lib/types';
+import { TriageBadge } from '@/components/TriageBadge';
 
 export default function HistoryPage() {
   const [history, setHistory] = useState<HistoryResponse | null>(null);
@@ -89,9 +90,10 @@ export default function HistoryPage() {
                       <td className="p-4">
                         <span className={`px-2 py-1 rounded text-xs font-semibold ${
                           item.riskScore > 0.5 ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'
-                        }`}>
+                        } mr-2`}>
                           {(item.riskScore * 100).toFixed(1)}%
                         </span>
+                        <TriageBadge tier={item.triageTier || 'Green'} />
                       </td>
                       <td className="p-4 text-slate-400">
                         {item.streamsUsed.join(', ')}

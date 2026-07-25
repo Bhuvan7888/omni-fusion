@@ -5,14 +5,18 @@ import { useAuth } from '@/components/auth/AuthProvider'
 import { Users, Search, Activity, ChevronRight, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { api } from '@/lib/api'
-import type { Profile } from '@/lib/types'
+import type { Profile, PatientRecord } from '@/lib/types'
+import { TriageBadge } from '@/components/TriageBadge'
 
 export default function DoctorPatientsPage() {
   const { profile } = useAuth()
   const [patients, setPatients] = useState<Profile[]>([])
+  const [filteredPatients, setFilteredPatients] = useState<Profile[]>([])
+  const [patientTiers, setPatientTiers] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [doctorCode, setDoctorCode] = useState('')
   const [showInvite, setShowInvite] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
     async function fetchPatients() {
@@ -20,8 +24,29 @@ export default function DoctorPatientsPage() {
 
       try {
         const [links, code] = await Promise.all([api.getPatients(), api.getDoctorCode()])
-        setPatients((links || []).filter((link) => link.status === 'accepted').map((link) => link.profiles))
+        const fetchedPatients = (links || []).filter((link) => link.status === 'accepted').map((link) => link.profiles)
+        setPatients(fetchedPatients)
+        setFilteredPatients(fetchedPatients)
         setDoctorCode(code.code)
+        
+        // Fetch triage tiers
+        const tiers: Record<string, string> = {}
+        await Promise.all(fetchedPatients.map(async (p) => {
+          try {
+            const record = await api.getPatientRecord(p.id)
+            if (record.predictions && record.predictions.length > 0) {
+              const latest = record.predictions.reduce((prev, current) => 
+                (new Date(prev.createdAt) > new Date(current.createdAt)) ? prev : current
+              )
+              if (latest.triageTier) {
+                tiers[p.id] = latest.triageTier
+              }
+            }
+          } catch (e) {
+            // ignore
+          }
+        }))
+        setPatientTiers(tiers)
       } catch (err) {
         console.error("Error fetching patients:", err)
       } finally {
@@ -31,6 +56,25 @@ export default function DoctorPatientsPage() {
 
     fetchPatients()
   }, [profile])
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (!searchTerm.trim()) {
+        setFilteredPatients(patients)
+      } else {
+        const term = searchTerm.toLowerCase()
+        setFilteredPatients(
+          patients.filter(
+            (p) =>
+              (p.fullName && p.fullName.toLowerCase().includes(term)) ||
+              (p.email && p.email.toLowerCase().includes(term))
+          )
+        )
+      }
+    }, 300)
+
+    return () => clearTimeout(handler)
+  }, [searchTerm, patients])
 
   if (loading) {
     return (
@@ -52,12 +96,18 @@ export default function DoctorPatientsPage() {
           <input 
             type="text" 
             placeholder="Search patients..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-blue-500 w-64"
           />
         </div>
       </div>
 
-      {patients.length === 0 ? (
+      {filteredPatients.length === 0 && patients.length > 0 ? (
+        <div className="text-center p-8 text-slate-400">
+          No patients match your search.
+        </div>
+      ) : patients.length === 0 ? (
         <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-12 text-center flex flex-col items-center">
           <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4">
             <Users className="w-8 h-8 text-slate-400" />
@@ -73,7 +123,7 @@ export default function DoctorPatientsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {patients.map((patient) => (
+          {filteredPatients.map((patient) => (
             <Link href={`/doctor/patients/${patient.id}`} key={patient.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 hover:border-slate-700 transition-colors group cursor-pointer">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-3">
@@ -89,7 +139,12 @@ export default function DoctorPatientsPage() {
                   <Activity className="w-4 h-4" />
                 </div>
               </div>
-              <div className="flex items-center justify-between text-sm text-slate-400 pt-4 border-t border-slate-800/50 mt-4">
+              <div className="mb-2 h-6">
+                {patientTiers[patient.id] && (
+                  <TriageBadge tier={patientTiers[patient.id]} />
+                )}
+              </div>
+              <div className="flex items-center justify-between text-sm text-slate-400 pt-4 border-t border-slate-800/50 mt-2">
                 <span>View recent scans</span>
                 <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </div>

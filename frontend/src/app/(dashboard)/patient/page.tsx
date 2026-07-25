@@ -159,6 +159,22 @@ export default function PatientDashboard() {
               </li>
             </ul>
           </div>
+
+          <div className="bg-slate-900 border-2 border-emerald-900/50 p-6 rounded-2xl shadow-lg relative overflow-hidden">
+            <div className="absolute top-0 right-0 bg-emerald-600 text-[10px] font-bold px-2 py-1 uppercase tracking-wider text-white rounded-bl-lg">ABDM Sandbox Mode</div>
+            <h3 className="text-lg font-semibold text-emerald-100 mb-2 flex items-center mt-2">
+              <Activity className="w-5 h-5 mr-2 text-emerald-400" />
+              National Health ID
+            </h3>
+            <p className="text-xs text-emerald-200/70 mb-4">
+              Simulated integration with Ayushman Bharat Digital Mission (ABDM).
+            </p>
+            <div className="bg-slate-950 p-3 rounded-lg text-xs font-mono text-emerald-400 break-all border border-emerald-900">
+              ABHA-ID: 14-{Math.floor(Math.random() * 9000 + 1000)}-{Math.floor(Math.random() * 9000 + 1000)}-{Math.floor(Math.random() * 9000 + 1000)}<br/>
+              Status: Linked & Verified<br/>
+              Consent: Active (Sandbox)
+            </div>
+          </div>
         </div>
       </div>
     </div>

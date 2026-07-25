@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/auth/AuthProvider'
-import { Users, Mail, Phone, MapPin, Loader2, Link2, KeyRound } from 'lucide-react'
+import { Users, Mail, Phone, MapPin, Loader2, Link2, KeyRound, Pill } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { DoctorProfile } from '@/lib/types'
+import { ChatBox } from '@/components/ChatBox'
 
 export default function MyDoctorPage() {
   const { profile } = useAuth()
@@ -171,6 +172,43 @@ export default function MyDoctorPage() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+          
+          <div className="mt-8 relative z-10 border-t border-slate-800 pt-8">
+            <h3 className="text-xl font-bold text-white mb-4 flex items-center">
+              <Pill className="w-5 h-5 mr-2 text-indigo-400" />
+              Active Prescriptions
+            </h3>
+            {(!profile?.medications || profile.medications.length === 0) ? (
+              <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 text-center text-slate-500 mb-8">
+                No active prescriptions from your doctor.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                {profile.medications.map((med: any, idx: number) => (
+                  <div key={idx} className="bg-slate-950 border border-slate-800 rounded-xl p-5 shadow-sm">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="text-white font-medium text-lg">{med.medicationName}</h4>
+                      {med.createdAt && <span className="text-xs text-slate-500">{new Date(med.createdAt).toLocaleDateString()}</span>}
+                    </div>
+                    <div className="grid grid-cols-2 gap-y-2 text-sm mt-3">
+                      <div><span className="text-slate-500 block text-[11px] uppercase tracking-wider mb-1">Dosage</span><span className="text-slate-300 font-medium">{med.dosage}</span></div>
+                      <div><span className="text-slate-500 block text-[11px] uppercase tracking-wider mb-1">Frequency</span><span className="text-slate-300 font-medium">{med.frequency}</span></div>
+                      <div><span className="text-slate-500 block text-[11px] uppercase tracking-wider mb-1">Duration</span><span className="text-slate-300 font-medium">{med.duration}</span></div>
+                    </div>
+                    {med.notes && <p className="mt-4 text-xs text-slate-400 bg-slate-900 border border-slate-800 p-3 rounded-lg leading-relaxed">{med.notes}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="border-t border-slate-800 pt-8 mt-8">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center">
+                <Users className="w-5 h-5 mr-2 text-emerald-400" />
+                Direct Message
+              </h3>
+              <ChatBox otherUserId={doctor.id} otherUserName={`Dr. ${doctor.fullName}`} />
             </div>
           </div>
         </div>

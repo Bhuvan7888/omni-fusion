@@ -4,11 +4,17 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/auth/AuthProvider'
-import { Loader2, ArrowLeft, FileText, User, Calendar, Activity, Plus } from 'lucide-react'
+import { Loader2, ArrowLeft, FileText, User, Calendar, Activity, Plus, MessageSquare } from 'lucide-react'
 import Link from 'next/link'
 import { api } from '@/lib/api'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import type { DoctorNote, Profile, StoredPrediction } from '@/lib/types'
+import { TriageBadge } from '@/components/TriageBadge'
+import { ClinicalSummaryCard } from '@/components/ClinicalSummaryCard'
+import { LiveMonitorPanel } from '@/components/LiveMonitorPanel'
+import { HistoricalEcgViewer } from '@/components/HistoricalEcgViewer'
+import { RiskForecastChart } from '@/components/RiskForecastChart'
+import { ReportComparison } from '@/components/ReportComparison'
+import { ChatBox } from '@/components/ChatBox'
 
 export default function PatientDetailsPage() {
   const { id } = useParams()
@@ -23,6 +29,10 @@ export default function PatientDetailsPage() {
   const [noteText, setNoteText] = useState('')
   const [activePredictionId, setActivePredictionId] = useState<string | null>(null)
   const [savingNote, setSavingNote] = useState(false)
+  
+  const [showPrescriptionForm, setShowPrescriptionForm] = useState(false)
+  const [rxForm, setRxForm] = useState({ medicationName: '', dosage: '', frequency: '', duration: '', notes: '' })
+  const [savingRx, setSavingRx] = useState(false)
 
   useEffect(() => {
     async function loadData() {
@@ -48,16 +58,7 @@ export default function PatientDetailsPage() {
     setSavingNote(true)
 
     try {
-      const { error } = await supabase
-        .from('doctor_notes')
-        .insert({
-          prediction_id: activePredictionId,
-          doctor_id: profile!.id,
-          note: noteText,
-          priority: 'normal'
-        })
-
-      if (error) throw error
+      await api.addDoctorNote(activePredictionId, noteText, 'normal')
 
       // Optimistically update UI
       setPredictions(prev => prev.map(p => {
@@ -77,6 +78,29 @@ export default function PatientDetailsPage() {
       alert("Failed to save note.")
     } finally {
       setSavingNote(false)
+    }
+  }
+
+  const handleSavePrescription = async () => {
+    if (!rxForm.medicationName || !rxForm.dosage || !rxForm.frequency || !rxForm.duration) {
+      alert("Please fill all required prescription fields.")
+      return
+    }
+    setSavingRx(true)
+    try {
+      await api.addPrescription(patientId, rxForm.medicationName, rxForm.dosage, rxForm.frequency, rxForm.duration, rxForm.notes)
+      // Optimistically update UI
+      setPatient(prev => prev ? {
+        ...prev,
+        medications: [...(prev.medications || []), { id: `local-${Date.now()}`, ...rxForm, createdAt: new Date().toISOString() }]
+      } : null)
+      setRxForm({ medicationName: '', dosage: '', frequency: '', duration: '', notes: '' })
+      setShowPrescriptionForm(false)
+    } catch (err) {
+      console.error("Error saving prescription:", err)
+      alert("Failed to save prescription.")
+    } finally {
+      setSavingRx(false)
     }
   }
 
@@ -105,7 +129,7 @@ export default function PatientDetailsPage() {
           <User className="w-10 h-10" />
         </div>
         <div className="flex-1 text-center md:text-left">
-          <h1 className="text-3xl font-bold text-white mb-2">{patient?.fullName}</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">{patient?.fullName || 'Unknown Patient'}</h1>
           <p className="text-slate-400">{patient?.email}</p>
         </div>
         <div className="flex gap-4">
@@ -120,7 +144,81 @@ export default function PatientDetailsPage() {
         </div>
       </div>
 
-      {predictions.length > 0 && <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 mb-8 shadow-lg"><h2 className="text-lg font-semibold mb-5">Longitudinal Risk History</h2><div className="h-64"><ResponsiveContainer width="100%" height="100%"><LineChart data={[...predictions].reverse().map(item => ({ date: new Date(item.createdAt).toLocaleDateString(), risk: item.riskScore * 100 }))}><XAxis dataKey="date" stroke="#78909a" fontSize={11}/><YAxis stroke="#78909a" fontSize={11}/><Tooltip/><Line type="monotone" dataKey="risk" stroke="#16b9a7" strokeWidth={3} dot={{fill:'#16b9a7'}}/></LineChart></ResponsiveContainer></div></div>}
+      {predictions.length > 0 && (
+        <RiskForecastChart patientId={patientId} historicalPredictions={predictions} />
+      )}
+
+      {predictions.length >= 2 && (
+        <ReportComparison predictions={predictions} />
+      )}
+
+      <div className="mb-8">
+        <LiveMonitorPanel patientId={patientId} />
+      </div>
+
+      <div className="mb-12">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-slate-100 flex items-center">
+            <Activity className="w-5 h-5 mr-2 text-indigo-400" />
+            Prescriptions & Medications
+          </h2>
+          <button onClick={() => setShowPrescriptionForm(!showPrescriptionForm)} className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center transition-colors">
+            <Plus className="w-4 h-4 mr-1" /> Add Prescription
+          </button>
+        </div>
+
+        {showPrescriptionForm && (
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 mb-6">
+            <h3 className="text-lg font-medium text-white mb-4">New Prescription</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <input type="text" placeholder="Medication Name" className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-white" value={rxForm.medicationName} onChange={e => setRxForm({...rxForm, medicationName: e.target.value})} />
+              <input type="text" placeholder="Dosage (e.g., 50mg)" className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-white" value={rxForm.dosage} onChange={e => setRxForm({...rxForm, dosage: e.target.value})} />
+              <input type="text" placeholder="Frequency (e.g., Twice daily)" className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-white" value={rxForm.frequency} onChange={e => setRxForm({...rxForm, frequency: e.target.value})} />
+              <input type="text" placeholder="Duration (e.g., 7 days)" className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-white" value={rxForm.duration} onChange={e => setRxForm({...rxForm, duration: e.target.value})} />
+              <textarea placeholder="Additional notes..." className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-white md:col-span-2" value={rxForm.notes} onChange={e => setRxForm({...rxForm, notes: e.target.value})} />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowPrescriptionForm(false)} className="px-4 py-2 text-slate-400 hover:text-white">Cancel</button>
+              <button onClick={handleSavePrescription} disabled={savingRx} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg flex items-center">
+                {savingRx && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Save Prescription
+              </button>
+            </div>
+          </div>
+        )}
+
+        {(!patient?.medications || patient.medications.length === 0) ? (
+          <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 text-center text-slate-500">
+            No active prescriptions for this patient.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {patient.medications.map((med, idx) => (
+              <div key={idx} className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
+                <div className="flex justify-between items-start mb-2">
+                  <h4 className="text-white font-medium text-lg">{med.medicationName}</h4>
+                  {med.createdAt && <span className="text-xs text-slate-500">{new Date(med.createdAt).toLocaleDateString()}</span>}
+                </div>
+                <div className="grid grid-cols-2 gap-y-2 text-sm">
+                  <div><span className="text-slate-500 block text-xs">Dosage</span><span className="text-slate-300">{med.dosage}</span></div>
+                  <div><span className="text-slate-500 block text-xs">Frequency</span><span className="text-slate-300">{med.frequency}</span></div>
+                  <div><span className="text-slate-500 block text-xs">Duration</span><span className="text-slate-300">{med.duration}</span></div>
+                </div>
+                {med.notes && <p className="mt-3 text-xs text-slate-400 bg-slate-950 p-2 rounded">{med.notes}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="mb-12">
+        <h2 className="text-xl font-bold text-slate-100 mb-4 flex items-center">
+          <MessageSquare className="w-5 h-5 mr-2 text-blue-400" />
+          Direct Chat
+        </h2>
+        {patient && (
+          <ChatBox otherUserId={patient.id} otherUserName={patient.fullName || 'Patient'} />
+        )}
+      </div>
 
       <h2 className="text-xl font-bold text-slate-100 mb-4 flex items-center">
         <Activity className="w-5 h-5 mr-2 text-emerald-400" />
@@ -145,8 +243,9 @@ export default function PatientDetailsPage() {
                       <Calendar className="w-4 h-4 mr-2" />
                       {new Date(pred.createdAt).toLocaleString()}
                     </div>
-                    <h3 className="text-lg font-medium text-white">
+                    <h3 className="text-lg font-medium text-white flex items-center gap-3">
                       Risk Score: {(pred.riskScore * 100).toFixed(1)}%
+                      <TriageBadge tier={pred.triageTier || 'Green'} />
                     </h3>
                   </div>
                   {hasReport && (
@@ -163,7 +262,17 @@ export default function PatientDetailsPage() {
                 {pred.streamsUsed?.length && <div className="mb-4 flex flex-wrap gap-2">{pred.streamsUsed.map((stream) => <span key={stream} className="px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-500 text-xs font-semibold">{stream}</span>)}</div>}
                 {pred.reports?.[0]?.shapData && <div className="mb-5"><h4 className="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider">Contributing Clinical Factors</h4><div className="grid grid-cols-2 md:grid-cols-3 gap-2">{Object.entries(pred.reports[0].shapData).sort((a,b) => Math.abs(b[1])-Math.abs(a[1])).slice(0,9).map(([feature,value]) => <div key={feature} className="bg-slate-950 border border-slate-800 rounded-xl p-3"><p className="text-xs text-slate-500 truncate">{feature}</p><p className={`font-mono font-semibold mt-1 ${value > 0 ? 'text-red-400' : 'text-emerald-500'}`}>{value.toFixed(4)}</p></div>)}</div></div>}
                 {pred.reports?.[0]?.failureAnalysisText && <div className="mb-5 bg-amber-500/5 border border-amber-500/20 rounded-xl p-4"><h4 className="text-sm font-semibold mb-1">Model Analysis</h4><p className="text-sm text-slate-500">{pred.reports[0].failureAnalysisText}</p></div>}
-                {pred.reports?.[0]?.ecgImageUrl && <div className="mb-5"><h4 className="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider">ECG Explainability Heatmap</h4><img src={pred.reports[0].ecgImageUrl} alt="ECG model attention heatmap" className="w-full rounded-2xl border border-slate-800 bg-white" /></div>}
+                {pred.reports?.[0]?.interactiveDataUrl ? (
+                  <div className="mb-5">
+                    <HistoricalEcgViewer interactiveDataUrl={pred.reports[0].interactiveDataUrl} />
+                  </div>
+                ) : pred.reports?.[0]?.ecgImageUrl ? (
+                  <div className="mb-5">
+                    <h4 className="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider">ECG Explainability Heatmap</h4>
+                    <img src={pred.reports[0].ecgImageUrl} alt="ECG model attention heatmap" className="w-full rounded-2xl border border-slate-800 bg-white" />
+                  </div>
+                ) : null}
+                <ClinicalSummaryCard predictionId={pred.id} />
 
                 {/* Doctor Notes Section */}
                 <div className="mt-4">

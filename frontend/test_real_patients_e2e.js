@@ -11,8 +11,14 @@ const path = require('path');
     const page = await browser.newPage();
     await page.setViewport({ width: 1280, height: 1024 });
 
-    console.log('Navigating to dashboard...');
-    await page.goto('http://localhost:3000', { waitUntil: 'networkidle2' });
+    console.log(`Logging in as demo.patient${i}...`);
+    await page.goto('http://localhost:3000/login', { waitUntil: 'networkidle2' });
+    await page.type('input[type="email"]', `demo.patient${i}@omnifusion.demo`);
+    await page.type('input[type="password"]', 'DemoPassword123!');
+    await page.click('button[type="submit"]');
+    await page.waitForNavigation({ waitUntil: 'networkidle2' });
+    console.log('Navigating to assessment...');
+    await page.goto('http://localhost:3000/patient/assessment/new', { waitUntil: 'networkidle2' });
 
     console.log('Uploading CSV...');
     const inputUploadHandle = await page.$('input[type=file]');

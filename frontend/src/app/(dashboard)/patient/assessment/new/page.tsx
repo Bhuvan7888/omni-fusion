@@ -1,15 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Activity, Download, ChevronRight, FileText, CheckCircle } from 'lucide-react';
 import FileUploadZone from '@/components/FileUploadZone';
 import HistoryTimeline from '@/components/HistoryTimeline';
 import ShapWaterfall from '@/components/ShapWaterfall';
-import EcgHeatmap from '@/components/EcgHeatmap';
+import { InteractiveEcgViewer } from '@/components/InteractiveEcgViewer';
+import { WhatIfExplorer } from '@/components/WhatIfExplorer';
+import { TriageBadge } from '@/components/TriageBadge';
+import { ClinicalSummaryCard } from '@/components/ClinicalSummaryCard';
 import { api } from '@/lib/api';
 import { PredictResponse, ReportResponse, PredictRequest, VitalsInput } from '@/lib/types';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { runOfflineInference, syncOfflinePredictions } from '@/lib/offlineInference';
 
 export default function Dashboard() {
   const { profile } = useAuth();
@@ -19,15 +23,52 @@ export default function Dashboard() {
   const [prediction, setPrediction] = useState<PredictResponse | null>(null);
   const [report, setReport] = useState<ReportResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [historyData, setHistoryData] = useState<{ createdAt: string, riskScore: number }[]>([]);
+  const [baseRequest, setBaseRequest] = useState<PredictRequest | null>(null);
+  
+  useEffect(() => {
+    async function loadHistory() {
+      try {
+        const hist = await api.getHistory(20, 0);
+        setHistoryData(hist.items.map(item => ({ createdAt: item.createdAt, riskScore: item.riskScore })));
+      } catch (err) {
+        console.error("Failed to load history:", err);
+      }
+    }
+    loadHistory();
+
+    const handleOnline = () => {
+      console.log("Back online. Syncing offline predictions...");
+      syncOfflinePredictions(api.runClinicalInference.bind(api)).catch(console.error);
+    };
+    window.addEventListener('online', handleOnline);
+    
+    // Sync immediately if we are online on mount
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      handleOnline();
+    }
+    
+    return () => window.removeEventListener('online', handleOnline);
+  }, []);
 
   const handleRunInference = async () => {
     setIsPredicting(true);
     setError(null);
     try {
-      // Create a noisy dummy ECG array so the model doesn't just see 0.0s
-      const noisyEcg = Array(12).fill(0).map((_, i) => 
-        Array(1000).fill(0).map((_, j) => Math.sin(j * 0.05 + i) * 0.5 + (Math.random() * 0.2))
-      );
+      // Fetch realistic 12-lead ECG from the backend demo endpoint
+      let ecgData = Array(12).fill(Array(1000).fill(0));
+      try {
+        const demoRes = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000') + '/api/v1/demo-ecg');
+        if (demoRes.ok) {
+          const json = await demoRes.json();
+          ecgData = json.ecg;
+        }
+      } catch (e) {
+        console.error("Failed to fetch demo ECG, falling back to dummy", e);
+        ecgData = Array(12).fill(0).map((_, i) => 
+          Array(1000).fill(0).map((_, j) => Math.sin(j * 0.05 + i) * 0.5 + (Math.random() * 0.2))
+        );
+      }
 
       // Extract vitals from historical if available, otherwise dummy
       const dummyVitals = {
@@ -46,23 +87,37 @@ export default function Dashboard() {
 
       const payload: PredictRequest = {
         patientId: profile?.id || "",
-        ecg: noisyEcg,
+        ecg: ecgData,
         vitals: dummyVitals,
         historical: historicalData || undefined,
         uploadSessionId: sessionId || undefined
       };
 
-      const pred = await api.runClinicalInference(payload);
-      setPrediction(pred);
+      setBaseRequest(payload);
 
-      // Instantly generate report
-      const rep = await api.generateReport(pred.predictionId, {
-        patientId: payload.patientId,
-        shapData: pred.shapData,
-        ecgGradcamHeatmapB64: pred.ecgGradcamHeatmapB64,
-        failureAnalysisSummary: pred.failureAnalysisSummary
-      });
-      setReport(rep);
+      let pred: PredictResponse;
+      try {
+        // Attempt online prediction
+        pred = await api.runClinicalInference(payload);
+        
+        // Instantly generate report
+        const rep = await api.generateReport(pred.predictionId, {
+          patientId: payload.patientId,
+          shapData: pred.shapData,
+          ecgGradcamHeatmapB64: pred.ecgGradcamHeatmapB64,
+          failureAnalysisSummary: pred.failureAnalysisSummary,
+          ecgGradcamData: pred.ecgGradcamData,
+          rawEcg: pred.rawEcg
+        });
+        setReport(rep);
+      } catch (onlineErr) {
+        console.warn("Online inference failed, trying offline:", onlineErr);
+        // Fall back to offline inference if API is unreachable
+        pred = await runOfflineInference(payload);
+        setReport(null);
+      }
+
+      setPrediction(pred);
 
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to run inference');
@@ -149,8 +204,9 @@ export default function Dashboard() {
             <div className="flex flex-col space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-100">
+                  <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-3">
                     Risk Score: <span className={prediction.riskScore > 0.5 ? 'text-red-400' : 'text-green-400'}>{(prediction.riskScore * 100).toFixed(1)}%</span>
+                    <TriageBadge tier={prediction.triageTier} />
                   </h2>
                   <p className="text-slate-500 text-sm mt-1">Streams combined: {prediction.streamsUsed.join(' + ')}</p>
                 </div>
@@ -180,17 +236,46 @@ export default function Dashboard() {
               
               <div className="w-full bg-slate-900 rounded-lg p-4 border border-slate-800">
                 <h3 className="text-slate-300 font-semibold mb-4 text-sm">Longitudinal Medical History</h3>
-                <HistoryTimeline />
+                <HistoryTimeline data={historyData} />
               </div>
             </div>
 
             {/* Right Viewport */}
-            <div className="flex flex-col">
-              <EcgHeatmap 
-                base64Image={prediction.ecgGradcamHeatmapB64}
-                failureAnalysis={prediction.failureAnalysisSummary}
-              />
+            <div className="flex flex-col space-y-4">
+              {prediction.rawEcg && prediction.ecgGradcamData ? (
+                <InteractiveEcgViewer 
+                  rawEcg={prediction.rawEcg}
+                  gradCam={prediction.ecgGradcamData}
+                />
+              ) : (
+                <div className="w-full bg-slate-900 rounded-lg p-4 border border-slate-800">
+                  <h3 className="text-slate-300 font-semibold mb-4 text-sm">ECG Grad-CAM Thermal Overlay</h3>
+                  <div className="w-full h-[250px] flex items-center justify-center bg-obsidian rounded overflow-hidden">
+                    <img 
+                      src={`data:image/png;base64,${prediction.ecgGradcamHeatmapB64}`} 
+                      alt="ECG Heatmap" 
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                </div>
+              )}
+              
+              <div className="w-full bg-slate-900 rounded-lg p-4 border border-slate-800">
+                <h3 className="text-slate-300 font-semibold mb-2 text-sm">Automated Analysis Summary</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  {prediction.failureAnalysisSummary}
+                </p>
+              </div>
+
+              <ClinicalSummaryCard predictionId={prediction.predictionId} />
             </div>
+            
+            {/* Full width What-If Explorer */}
+            {baseRequest && (
+              <div className="lg:col-span-2">
+                <WhatIfExplorer baseRequest={baseRequest} originalPrediction={prediction} />
+              </div>
+            )}
           </section>
         )}
       </div>

@@ -11,6 +11,7 @@ type Profile = {
   age?: number
   bmi?: number
   smoking_status?: string
+  medications?: any[]
 }
 
 type AuthContextType = {

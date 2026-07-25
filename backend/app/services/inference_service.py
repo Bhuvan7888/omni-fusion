@@ -19,7 +19,13 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import joblib
 
-from app.core.config import settings
+from app.core.config import (
+    settings,
+    HIGH_RISK_THRESHOLD_PCT,
+    TRIAGE_RED_THRESHOLD,
+    TRIAGE_ORANGE_THRESHOLD,
+    TRIAGE_YELLOW_THRESHOLD
+)
 from app.models.networks import ResNet1D, VitalsMLP, HistoricalGRU, OmniFusionNet
 from app.models.schemas import PredictRequest, PredictResponse
 
@@ -198,11 +204,25 @@ class InferenceService:
         else:
             summary += f"It overly relied on {top_pulling[0][0]} and {top_pulling[1][0]} to predict safety, while ignoring the risk indicators from {top_pushing[1][0]}."
 
+        # Compute triage tier
+        prob_pct = prob * 100
+        if prob_pct >= TRIAGE_RED_THRESHOLD:
+            triage_tier = "Red"
+        elif prob_pct >= TRIAGE_ORANGE_THRESHOLD:
+            triage_tier = "Orange"
+        elif prob_pct >= TRIAGE_YELLOW_THRESHOLD:
+            triage_tier = "Yellow"
+        else:
+            triage_tier = "Green"
+
         return PredictResponse(
             patient_id=req.patient_id,
             risk_score=float(prob),
+            triage_tier=triage_tier,
             shap_data=shap_dict,
             ecg_gradcam_heatmap_b64=gc_b64,
+            ecg_gradcam_data=attr.tolist(),
+            raw_ecg=req.ecg,
             failure_analysis_summary=summary,
             streams_used=streams_used
         )

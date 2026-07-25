@@ -5,11 +5,12 @@ import { useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { useAuth } from "@/components/auth/AuthProvider"
 import { RoleGuard } from "@/components/auth/RoleGuard"
+import NotificationBell from "@/components/NotificationBell"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   Activity, LayoutDashboard, Users, FileText, LogOut, FilePlus, Bell,
-  Menu, X, ChevronDown, PanelLeftClose, PanelLeftOpen, HeartPulse,
+  Menu, X, ChevronDown, PanelLeftClose, PanelLeftOpen, HeartPulse, MessageSquare
 } from "lucide-react"
 
 const pageNames: Record<string, string> = {
@@ -33,6 +34,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const doctorLinks = [
     { name: "Overview", href: "/doctor", icon: LayoutDashboard },
     { name: "Patients", href: "/doctor/patients", icon: Users },
+    { name: "Messages", href: "/doctor/messages", icon: MessageSquare },
     { name: "Analytics", href: "/doctor/analytics", icon: Activity },
   ]
   const links = isPatient ? patientLinks : doctorLinks
@@ -91,7 +93,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <button className="icon-button mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Open navigation"><Menu size={20}/></button>
           <div className="page-context"><span>{isPatient ? "My health" : "Workspace"} /</span><strong>{title}</strong></div>
           <div className="top-actions">
-            <button className="icon-button notification" aria-label="Notifications"><Bell size={19}/><i/></button>
+            <NotificationBell />
             <button className="top-profile" onClick={() => setProfileOpen(!profileOpen)}><span className="avatar">{profile?.full_name?.charAt(0) || "U"}</span><ChevronDown size={15}/></button>
           </div>
           <AnimatePresence>{profileOpen && <motion.div className="profile-menu" initial={{opacity:0,y:-8,scale:.97}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-8}}>
