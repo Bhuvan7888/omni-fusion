@@ -110,7 +110,7 @@ export interface ClinicalAnalytics {
 export interface DoctorProfile extends Profile { role: 'DOCTOR' }
 export interface DoctorPatientLink { id: string; patientId: string; doctorId: string; status: 'pending' | 'accepted' | 'rejected'; createdAt: string; profiles: Profile; latest_triage_tier?: string }
 export interface DoctorNote { id: string; note: string; createdAt: string; priority?: string }
-export interface StoredReport { id: string; createdAt: string; pdfStoragePath: string; downloadUrl?: string; shapData?: Record<string, number>; failureAnalysisText?: string; interactiveDataUrl?: string }
+export interface StoredReport { id: string; createdAt: string; pdfStoragePath: string; downloadUrl?: string; shapData?: Record<string, number>; failureAnalysisText?: string; interactiveDataUrl?: string; ecgImageUrl?: string; bloodImageUrl?: string; }
 export interface StoredPrediction { id: string; createdAt: string; riskScore: number; triageTier?: string; streamsUsed?: string[]; reports: StoredReport[]; doctorNotes: DoctorNote[]; raw_ecg?: number[]; ecg_gradcam_data?: number[]; bloodImageUrl?: string; ecgImageUrl?: string; ecgAbnormality?: string }
 export interface PatientRecord { profile: Profile; predictions: StoredPrediction[] }
 export interface DoctorConnection { message: string; doctor: DoctorProfile }
