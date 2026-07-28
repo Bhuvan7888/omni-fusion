@@ -44,6 +44,7 @@ export async function runOfflineInference(request: PredictRequest): Promise<Pred
     // The model will still give a reasonable (though potentially shifted) directional result.
     
     const vitals = request.vitals;
+    if (!vitals) throw new Error("Vitals required for offline inference");
     const inputData = Float32Array.from([
       vitals.anchorAge,
       vitals.gender,

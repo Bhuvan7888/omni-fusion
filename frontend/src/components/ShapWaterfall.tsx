@@ -49,7 +49,7 @@ export default function ShapWaterfall({ shapData }: ShapWaterfallProps) {
           <Tooltip 
             contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }}
             cursor={{fill: '#334155', opacity: 0.4}}
-            formatter={(value: number) => [value.toFixed(4), "Impact"]}
+            formatter={(value: any) => [Number(value).toFixed(4), "Impact"]}
           />
           <Bar dataKey="value">
             {data.map((entry, index) => (

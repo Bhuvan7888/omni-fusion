@@ -83,7 +83,7 @@ export const WhatIfExplorer: React.FC<WhatIfExplorerProps> = ({ baseRequest, ori
         {/* Sliders */}
         <div className="space-y-6">
           {Object.entries(VITAL_RANGES).map(([key, config]) => {
-            const baseValue = baseRequest.vitals[key as keyof typeof baseRequest.vitals];
+            const baseValue = baseRequest.vitals ? baseRequest.vitals[key as keyof typeof baseRequest.vitals] : 0;
             const currentValue = overrides[key] !== undefined ? overrides[key] : baseValue;
             
             return (
@@ -115,9 +115,9 @@ export const WhatIfExplorer: React.FC<WhatIfExplorerProps> = ({ baseRequest, ori
           <div className="flex items-center justify-between mb-8">
             <div className="text-center flex-1">
               <p className="text-sm text-slate-500 mb-2">Original</p>
-              <p className="text-3xl font-bold text-slate-200">{(originalPrediction.riskScore * 100).toFixed(1)}%</p>
+              <p className="text-3xl font-bold text-slate-200">{((originalPrediction.riskScore ?? 0) * 100).toFixed(1)}%</p>
               <div className="mt-2">
-                <TriageBadge tier={originalPrediction.triageTier} />
+                <TriageBadge tier={originalPrediction.triageTier ?? 'Green'} />
               </div>
             </div>
             
@@ -129,11 +129,11 @@ export const WhatIfExplorer: React.FC<WhatIfExplorerProps> = ({ baseRequest, ori
               <p className="text-sm text-slate-500 mb-2">Simulated</p>
               {simulatedResult ? (
                 <>
-                  <p className={`text-3xl font-bold ${simulatedResult.riskScore > originalPrediction.riskScore ? 'text-red-400' : 'text-green-400'}`}>
-                    {(simulatedResult.riskScore * 100).toFixed(1)}%
+                  <p className={`text-3xl font-bold ${(simulatedResult.riskScore ?? 0) > (originalPrediction.riskScore ?? 0) ? 'text-red-400' : 'text-green-400'}`}>
+                    {((simulatedResult.riskScore ?? 0) * 100).toFixed(1)}%
                   </p>
                   <div className="mt-2">
-                    <TriageBadge tier={simulatedResult.triageTier} />
+                    <TriageBadge tier={simulatedResult.triageTier ?? 'Green'} />
                   </div>
                 </>
               ) : (

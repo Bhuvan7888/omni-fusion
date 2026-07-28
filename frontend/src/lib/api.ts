@@ -161,7 +161,7 @@ class ApiClient {
       },
       body: JSON.stringify({patient_id:payload.patientId,shap_data:payload.shapData,ecg_gradcam_heatmap_b64:payload.ecgGradcamHeatmapB64,failure_analysis_summary:payload.failureAnalysisSummary,ecg_gradcam_data:payload.ecgGradcamData,raw_ecg:payload.rawEcg}),
     });
-    return {predictionId:raw.prediction_id,riskScore:raw.risk_score,shapData:raw.shap_data,failureAnalysisText:raw.failure_analysis_text,pdfStoragePath:raw.pdf_storage_path,pdfSignedUrl:raw.pdf_signed_url};
+    return {predictionId:raw.prediction_id,riskScore:raw.risk_score ?? 0,shapData:raw.shap_data,failureAnalysisText:raw.failure_analysis_text,pdfStoragePath:raw.pdf_storage_path,pdfSignedUrl:raw.pdf_signed_url};
   }
 
   async getHistory(limit: number = 20, offset: number = 0): Promise<HistoryResponse> {
