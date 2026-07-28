@@ -111,9 +111,37 @@ export default function PatientReports() {
                   <div className="mt-6 px-4 py-3 bg-slate-950 rounded-2xl border border-slate-800 flex items-center justify-between">
                       <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Risk Score</p>
                       <p className={`text-lg font-bold ${pred.riskScore > 0.5 ? 'text-red-400' : 'text-emerald-400'}`}>
-                        {(pred.riskScore * 100).toFixed(1)}%
+                        {pred.riskScore >= 0 ? (pred.riskScore * 100).toFixed(1) + '%' : 'N/A (ECG)'}
                       </p>
                   </div>
+
+                  {(pred.bloodImageUrl || pred.ecgImageUrl) && (
+                    <div className="mt-4 flex gap-3">
+                      {pred.bloodImageUrl && (
+                        <div className="flex-1">
+                          <p className="text-[10px] text-slate-500 mb-1 uppercase tracking-wider">Blood Report</p>
+                          <a href={pred.bloodImageUrl} target="_blank" rel="noopener noreferrer" className="block w-full h-16 rounded-xl border border-slate-700 overflow-hidden hover:border-emerald-500 transition-colors">
+                            <img src={pred.bloodImageUrl} alt="Blood Report" className="w-full h-full object-cover opacity-80 hover:opacity-100 transition-opacity" />
+                          </a>
+                        </div>
+                      )}
+                      {pred.ecgImageUrl && (
+                        <div className="flex-1">
+                          <p className="text-[10px] text-slate-500 mb-1 uppercase tracking-wider">ECG Report</p>
+                          <a href={pred.ecgImageUrl} target="_blank" rel="noopener noreferrer" className="block w-full h-16 rounded-xl border border-slate-700 overflow-hidden hover:border-emerald-500 transition-colors">
+                            <img src={pred.ecgImageUrl} alt="ECG Report" className="w-full h-full object-cover opacity-80 hover:opacity-100 transition-opacity" />
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {pred.ecgAbnormality && (
+                    <div className="mt-4 p-3 bg-red-900/20 border border-red-800/50 rounded-xl">
+                      <p className="text-xs text-red-400 font-semibold mb-1">ECG Abnormality</p>
+                      <p className="text-sm text-red-200/80 line-clamp-2" title={pred.ecgAbnormality}>{pred.ecgAbnormality}</p>
+                    </div>
+                  )}
 
                     <div className="mt-auto pt-5 grid gap-2">
                         <button 

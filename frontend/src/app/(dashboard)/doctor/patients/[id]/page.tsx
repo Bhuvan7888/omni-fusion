@@ -10,7 +10,7 @@ import { api } from '@/lib/api'
 import type { DoctorNote, Profile, StoredPrediction } from '@/lib/types'
 import { TriageBadge } from '@/components/TriageBadge'
 import { ClinicalSummaryCard } from '@/components/ClinicalSummaryCard'
-import { LiveMonitorPanel } from '@/components/LiveMonitorPanel'
+import { PredictionHistoryList } from '@/components/PredictionHistoryList'
 import { HistoricalEcgViewer } from '@/components/HistoricalEcgViewer'
 import { RiskForecastChart } from '@/components/RiskForecastChart'
 import { ReportComparison } from '@/components/ReportComparison'
@@ -153,7 +153,7 @@ export default function PatientDetailsPage() {
       )}
 
       <div className="mb-8">
-        <LiveMonitorPanel patientId={patientId} />
+
       </div>
 
       <div className="mb-12">

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class CopilotService:
     def __init__(self):
         self.api_key = settings.gemini_api_key
-        self.model_name = "gemini-2.5-flash"
+        self.model_name = "gemini-flash-latest"
         self.api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model_name}:generateContent?key={self.api_key}"
 
     def generate_soap_note(

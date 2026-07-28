@@ -22,7 +22,7 @@ def handle_supabase_errors(operation_name: str):
                 logger.error("Error during %s: %s", operation_name, error)
                 raise HTTPException(
                     status_code=500,
-                    detail=f"Failed to complete: {operation_name}",
+                    detail=f"Failed to complete {operation_name}: {str(error)}",
                 ) from error
 
         return wrapper

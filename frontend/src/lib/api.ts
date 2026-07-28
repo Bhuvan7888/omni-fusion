@@ -31,18 +31,42 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
 import { createClient } from './supabase/client';
 
 type SnakeVitals = { anchor_age:number; gender:number; Creatinine:number; Glucose:number; Potassium:number; Sodium:number; HR:number; SBP:number; DBP:number; RR:number; O2:number };
-type RawPrediction = { prediction_id:string; patient_id:string; risk_score:number; shap_data:Record<string,number>; ecg_gradcam_heatmap_b64:string; ecg_gradcam_data?:number[]; raw_ecg?:number[][]; failure_analysis_summary:string; streams_used:string[] };
-type RawUpload = { session_id:string; row_count:number; imputation_summary:Record<string,number>; status:string; aggregated_data?:SnakeVitals };
-type RawReportResponse = { prediction_id:string; risk_score:number; shap_data:Record<string,number>; failure_analysis_text:string; pdf_storage_path:string; pdf_signed_url:string };
+type RawPrediction = { prediction_id:string; patient_id:string; risk_score:number|null; shap_data:Record<string,number>; ecg_gradcam_heatmap_b64:string|null; ecg_gradcam_data?:number[]; raw_ecg?:number[][]; failure_analysis_summary:string; streams_used:string[]; ecg_abnormality?:string|null; triage_tier?:string|null };
+type RawUpload = { session_id:string; row_count:number; imputation_summary:Record<string,any>; status:string; aggregated_data?:any };
+type RawReportResponse = { prediction_id:string; risk_score:number|null; shap_data:Record<string,number>; failure_analysis_text:string; pdf_storage_path:string; pdf_signed_url:string };
 type RawStoredPrediction = { id:string; created_at:string; risk_score:number; streams_used?:string[]; reports?:Array<{id:string;created_at:string;pdf_storage_path:string;download_url?:string;shap_data?:Record<string,number>;failure_analysis_text?:string;ecg_image_url?:string;interactive_data_url?:string}>; doctor_notes?:Array<{id:string;note:string;created_at:string;priority?:string}> };
 type RawProfile = Record<string, unknown> & { id:string; role:'PATIENT'|'DOCTOR' };
-type RawLink = { id:string; patient_id:string; doctor_id:string; status:'pending'|'accepted'|'rejected'; created_at:string; profiles:RawProfile };
+type RawLink = { id:string; patient_id:string; doctor_id:string; status:'pending'|'accepted'|'rejected'; created_at:string; profiles:RawProfile; latest_triage_tier?:string };
 
 const mapVitalsToWire = (value: VitalsInput): SnakeVitals => ({ anchor_age:value.anchorAge,gender:value.gender,Creatinine:value.creatinine,Glucose:value.glucose,Potassium:value.potassium,Sodium:value.sodium,HR:value.hr,SBP:value.sbp,DBP:value.dbp,RR:value.rr,O2:value.o2 });
-const mapVitalsFromWire = (value: SnakeVitals): VitalsInput => ({ anchorAge:value.anchor_age,gender:value.gender,creatinine:value.Creatinine,glucose:value.Glucose,potassium:value.Potassium,sodium:value.Sodium,hr:value.HR,sbp:value.SBP,dbp:value.DBP,rr:value.RR,o2:value.O2 });
-const mapPredictRequest = (value: PredictRequest) => ({ patient_id:value.patientId,ecg:value.ecg,vitals:mapVitalsToWire(value.vitals),historical:value.historical?mapVitalsToWire(value.historical):undefined,upload_session_id:value.uploadSessionId,offline_client_id:value.offlineClientId });
-const mapCounterfactualRequest = (value: PredictCounterfactualRequest) => ({ base_request: mapPredictRequest(value.base_request), overrides: value.overrides });
-const mapPredictionResponse = (raw: RawPrediction): PredictResponse => ({ predictionId:raw.prediction_id,patientId:raw.patient_id,riskScore:raw.risk_score,triageTier: (raw as any).triage_tier || 'Green', shapData:raw.shap_data,ecgGradcamHeatmapB64:raw.ecg_gradcam_heatmap_b64,ecgGradcamData:raw.ecg_gradcam_data,rawEcg:raw.raw_ecg,failureAnalysisSummary:raw.failure_analysis_summary,streamsUsed:raw.streams_used });
+const mapVitalsFromWire = (value: any): any => ({ anchorAge:value.anchor_age,gender:value.gender,creatinine:value.Creatinine,glucose:value.Glucose,potassium:value.Potassium,sodium:value.Sodium,hr:value.HR,sbp:value.SBP,dbp:value.DBP,rr:value.RR,o2:value.O2, uploadedImagePath: value.uploaded_image_path, ecgAbnormality: value.ecg_abnormality });
+const mapPredictRequest = (value: PredictRequest) => ({ patient_id:value.patientId,ecg:value.ecg,vitals:value.vitals?mapVitalsToWire(value.vitals):undefined,historical:value.historical?mapVitalsToWire(value.historical):undefined,upload_session_id:value.uploadSessionId,offline_client_id:value.offlineClientId,is_ecg_only:value.isEcgOnly,blood_image_path:value.bloodImagePath,ecg_image_path:value.ecgImagePath,ecg_abnormality:value.ecgAbnormality });
+
+const WIRE_VITAL_MAP: Record<string, string> = {
+  anchorAge: 'anchor_age',
+  gender: 'gender',
+  creatinine: 'Creatinine',
+  glucose: 'Glucose',
+  potassium: 'Potassium',
+  sodium: 'Sodium',
+  hr: 'HR',
+  sbp: 'SBP',
+  dbp: 'DBP',
+  rr: 'RR',
+  o2: 'O2'
+};
+
+const mapCounterfactualRequest = (value: PredictCounterfactualRequest) => {
+  const mappedOverrides: Record<string, number> = {};
+  for (const [k, v] of Object.entries(value.overrides)) {
+    mappedOverrides[WIRE_VITAL_MAP[k] || k] = v;
+  }
+  return { 
+    base_request: mapPredictRequest(value.base_request), 
+    overrides: mappedOverrides 
+  };
+};
+const mapPredictionResponse = (raw: RawPrediction): PredictResponse => ({ predictionId:raw.prediction_id,patientId:raw.patient_id,riskScore:raw.risk_score,triageTier: raw.triage_tier || null, shapData:raw.shap_data,ecgGradcamHeatmapB64:raw.ecg_gradcam_heatmap_b64,ecgGradcamData:raw.ecg_gradcam_data,rawEcg:raw.raw_ecg,failureAnalysisSummary:raw.failure_analysis_summary,streamsUsed:raw.streams_used,ecgAbnormality:raw.ecg_abnormality });
 const mapProfile = (raw: RawProfile): Profile => ({ id:raw.id,role:raw.role,fullName:raw.full_name as string|undefined,email:raw.email as string|undefined,age:raw.age as number|undefined,bmi:raw.bmi as number|undefined,smokingStatus:raw.smoking_status as string|undefined,specialization:raw.specialization as string|undefined,hospital:raw.hospital as string|undefined,phone:raw.phone as string|undefined,medications:(raw.medications as any) || [] });
 const mapProfileInput = (value: ProfileInput) => ({ role:value.role,full_name:value.fullName,email:value.email,date_of_birth:value.dateOfBirth,sex:value.sex,height_cm:value.heightCm,weight_kg:value.weightKg,smoking_status:value.smokingStatus,alcohol_use:value.alcoholUse,exercise_frequency:value.exerciseFrequency,medical_registration_number:value.medicalRegistrationNumber,specialization:value.specialization,hospital:value.hospital,phone:value.phone,bio:value.bio });
 const mapStoredPrediction = (raw: RawStoredPrediction): StoredPrediction => ({ id:raw.id,createdAt:raw.created_at,riskScore:raw.risk_score,streamsUsed:raw.streams_used,reports:(raw.reports||[]).map(item=>({id:item.id,createdAt:item.created_at,pdfStoragePath:item.pdf_storage_path,downloadUrl:item.download_url,shapData:item.shap_data,failureAnalysisText:item.failure_analysis_text,ecgImageUrl:item.ecg_image_url,interactiveDataUrl:item.interactive_data_url})),doctorNotes:(raw.doctor_notes||[]).map(item=>({id:item.id,note:item.note,createdAt:item.created_at,priority:item.priority})) });
@@ -81,6 +105,26 @@ class ApiClient {
     const formData = new FormData();
     formData.append('file', file);
     const raw = await this.request<RawUpload>('/api/v1/upload-historical', {
+      method: 'POST',
+      body: formData,
+    });
+    return {sessionId:raw.session_id,rowCount:raw.row_count,imputationSummary:raw.imputation_summary,status:raw.status,aggregatedData:raw.aggregated_data?mapVitalsFromWire(raw.aggregated_data):undefined};
+  }
+
+  async uploadBloodReport(file: File): Promise<UploadHistoricalResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const raw = await this.request<RawUpload>('/api/v1/upload-blood-report', {
+      method: 'POST',
+      body: formData,
+    });
+    return {sessionId:raw.session_id,rowCount:raw.row_count,imputationSummary:raw.imputation_summary,status:raw.status,aggregatedData:raw.aggregated_data?mapVitalsFromWire(raw.aggregated_data):undefined};
+  }
+
+  async uploadEcgReport(file: File): Promise<UploadHistoricalResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const raw = await this.request<RawUpload>('/api/v1/upload-ecg-report', {
       method: 'POST',
       body: formData,
     });
@@ -189,7 +233,7 @@ class ApiClient {
     const raw = await this.request<RawLink[]>('/api/v1/clinical/patients', {
       method: 'GET',
     });
-    return raw.map(item=>({id:item.id,patientId:item.patient_id,doctorId:item.doctor_id,status:item.status,createdAt:item.created_at,profiles:mapProfile(item.profiles)}));
+    return raw.map(item=>({id:item.id,patientId:item.patient_id,doctorId:item.doctor_id,status:item.status,createdAt:item.created_at,profiles:mapProfile(item.profiles),latest_triage_tier:item.latest_triage_tier}));
   }
 
   async requestLink(doctorId: string): Promise<unknown> {

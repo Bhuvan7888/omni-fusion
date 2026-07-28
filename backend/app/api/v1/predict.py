@@ -34,9 +34,37 @@ async def predict(request: Request, payload: PredictRequest, user_data: dict = D
                 prediction.prediction_id = existing.data[0]["id"]
                 return prediction
                 
-        prediction = inference_service.predict(payload)
+        if payload.is_ecg_only:
+            prediction = PredictResponse(
+                patient_id=payload.patient_id,
+                risk_score=None,
+                triage_tier=None,
+                shap_data={},
+                failure_analysis_summary=payload.ecg_abnormality or "ECG Analysis without vitals.",
+                streams_used=["ECG Image Analysis"],
+                ecg_abnormality=payload.ecg_abnormality
+            )
+        else:
+            prediction = inference_service.predict(payload)
+            if payload.ecg_abnormality:
+                prediction.ecg_abnormality = payload.ecg_abnormality
+                
         prediction_id = str(uuid.uuid4())
         prediction.prediction_id = prediction_id
+        
+        db_risk_score = prediction.risk_score if prediction.risk_score is not None else -1.0
+        
+        raw_input_ref_common = {
+            "patient_id": payload.patient_id,
+            "has_vitals": not payload.is_ecg_only,
+            "has_historical": payload.historical is not None,
+            "has_upload_session": payload.upload_session_id is not None,
+            "offline_client_id": payload.offline_client_id,
+            "blood_image_path": payload.blood_image_path,
+            "ecg_image_path": payload.ecg_image_path,
+            "ecg_abnormality": payload.ecg_abnormality,
+            "is_ecg_only": payload.is_ecg_only,
+        }
 
         profile = user_data.get("profile") if user_data else None
         if not profile or profile.get("role") != Role.PATIENT.value:
@@ -46,35 +74,23 @@ async def predict(request: Request, payload: PredictRequest, user_data: dict = D
                 supabase.table("predictions").insert({
                     "id": prediction_id,
                     "upload_session_id": payload.upload_session_id,
-                    "risk_score": prediction.risk_score,
+                    "risk_score": db_risk_score,
                     "streams_used": prediction.streams_used,
-                    "raw_input_ref": {
-                        "patient_id": payload.patient_id,
-                        "has_vitals": True,
-                        "has_historical": payload.historical is not None,
-                        "has_upload_session": payload.upload_session_id is not None,
-                        "offline_client_id": payload.offline_client_id,
-                    },
+                    "raw_input_ref": raw_input_ref_common,
                 }).execute()
             except Exception as e:
                 logger.warning(f"Could not persist manual prediction to Supabase (likely test env): {e}")
             return prediction
 
         patient_id = user_data.get("auth").id
-        raw_input_ref = {
-            "patient_id": patient_id,
-            "has_vitals": True,
-            "has_historical": payload.historical is not None,
-            "has_upload_session": payload.upload_session_id is not None,
-            "offline_client_id": payload.offline_client_id,
-        }
+        raw_input_ref = {**raw_input_ref_common, "patient_id": patient_id}
         links = supabase.table("doctor_patient_links").select("doctor_id").eq("patient_id", patient_id).eq("status", LinkStatus.ACCEPTED.value).execute()
         doctor_id = links.data[0].get("doctor_id") if links.data else None
         try:
             supabase.table("predictions").insert({
                 "id": prediction_id,
                 "upload_session_id": payload.upload_session_id,
-                "risk_score": prediction.risk_score,
+                "risk_score": db_risk_score,
                 "streams_used": prediction.streams_used,
                 "raw_input_ref": raw_input_ref,
                 "patient_id": patient_id,
@@ -145,15 +161,21 @@ async def counterfactual_predict(request: Request, payload: PredictCounterfactua
 async def get_demo_ecg():
     """Generate a realistic 12-lead synthetic ECG using neurokit2."""
     try:
-        # Generate 1D ECG (duration 2s, 500Hz -> 1000 points)
-        base_ecg = nk.ecg_simulate(duration=2, sampling_rate=500)
+        # Generate 1D ECG (duration 10s, 100Hz -> 1000 points) to match 10-second standard 12-lead
+        base_ecg = nk.ecg_simulate(duration=10, sampling_rate=100, heart_rate=65)
         
-        # Expand to 12 leads with varying amplitude and noise
+        # Expand to 12 leads with varying amplitude, noise, and polarity to look like a real 12-lead
         leads = []
         for i in range(12):
+            # Lead I, II, III, aVR, aVL, aVF, V1-V6
             amplitude = 0.5 + (i % 3) * 0.2
             noise = np.random.normal(0, 0.05, 1000)
-            lead = base_ecg * amplitude + noise
+            
+            # aVR (index 3) and V1 (index 6) are typically mostly negative (inverted)
+            polarity = -1 if i in [3, 6] else 1
+            
+            # Add some phase shift or morphology variation? Just polarity and amp is fine for demo
+            lead = (base_ecg * amplitude * polarity) + noise
             leads.append(lead.tolist())
             
         return {"ecg": leads}

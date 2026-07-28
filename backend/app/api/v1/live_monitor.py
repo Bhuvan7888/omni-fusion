@@ -86,21 +86,23 @@ async def live_monitor_endpoint(websocket: WebSocket, patient_id: str, token: st
             # Send the frame to the client
             await websocket.send_json(frame)
             
-            if frame["is_anomaly"] and doctor_id:
-                # Trigger background anomaly logic
-                hr = frame["hr"]
-                spo2 = frame["spo2"]
-                try:
-                    sbp_str, dbp_str = frame["bp"].split("/")
-                    sbp, dbp = float(sbp_str), float(dbp_str)
-                except ValueError:
-                    sbp, dbp = 120.0, 80.0
-                    
-                asyncio.create_task(
-                    handle_anomaly(patient_id, doctor_id, hr, spo2, sbp, dbp)
-                )
+            if frame["is_anomaly"]:
+                # Trigger background anomaly logic if we have a doctor_id
+                if doctor_id:
+                    hr = frame["hr"]
+                    spo2 = frame["spo2"]
+                    try:
+                        sbp_str, dbp_str = frame["bp"].split("/")
+                        sbp, dbp = float(sbp_str), float(dbp_str)
+                    except ValueError:
+                        sbp, dbp = 120.0, 80.0
+                        
+                    asyncio.create_task(
+                        handle_anomaly(patient_id, doctor_id, hr, spo2, sbp, dbp)
+                    )
                 
                 # Push alert frame over the same socket
+                spo2 = frame["spo2"]
                 alert_frame = {
                     "type": "ALERT",
                     "message": f"SpO2 dropped to {spo2}%! Background inference triggered."

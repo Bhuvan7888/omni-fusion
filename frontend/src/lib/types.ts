@@ -28,19 +28,24 @@ export interface ChatMessage {
 export interface PredictRequest {
   patientId: string;
   ecg: number[][];
-  vitals: VitalsInput;
+  vitals?: VitalsInput;
   historical?: HistoricalInput;
   uploadSessionId?: string;
   offlineClientId?: string;
+  isEcgOnly?: boolean;
+  bloodImagePath?: string;
+  ecgImagePath?: string;
+  ecgAbnormality?: string;
 }
 
 export interface PredictResponse {
-  predictionId: string; patientId: string; riskScore: number;
-  triageTier: string; shapData: Record<string, number>;
-  ecgGradcamHeatmapB64: string; failureAnalysisSummary: string;
+  predictionId: string; patientId: string; riskScore: number | null;
+  triageTier: string | null; shapData: Record<string, number>;
+  ecgGradcamHeatmapB64: string | null; failureAnalysisSummary: string;
   streamsUsed: string[];
   ecgGradcamData?: number[];
   rawEcg?: number[][];
+  ecgAbnormality?: string | null;
 }
 
 export interface PredictCounterfactualRequest {
@@ -49,8 +54,8 @@ export interface PredictCounterfactualRequest {
 }
 
 export interface UploadHistoricalResponse {
-  sessionId: string; rowCount: number; imputationSummary: Record<string, number>;
-  status: string; aggregatedData?: VitalsInput;
+  sessionId: string; rowCount: number; imputationSummary: Record<string, any>;
+  status: string; aggregatedData?: any;
 }
 
 export interface ReportRequest {
@@ -103,9 +108,9 @@ export interface ClinicalAnalytics {
   topPatients?: { patientId: string, name: string, email: string, riskScore: number, lastAssessment: string }[];
 }
 export interface DoctorProfile extends Profile { role: 'DOCTOR' }
-export interface DoctorPatientLink { id: string; patientId: string; doctorId: string; status: 'pending' | 'accepted' | 'rejected'; createdAt: string; profiles: Profile }
+export interface DoctorPatientLink { id: string; patientId: string; doctorId: string; status: 'pending' | 'accepted' | 'rejected'; createdAt: string; profiles: Profile; latest_triage_tier?: string }
 export interface DoctorNote { id: string; note: string; createdAt: string; priority?: string }
-export interface StoredReport { id: string; createdAt: string; pdfStoragePath: string; downloadUrl?: string; shapData?: Record<string, number>; failureAnalysisText?: string; ecgImageUrl?: string; interactiveDataUrl?: string }
-export interface StoredPrediction { id: string; createdAt: string; riskScore: number; triageTier?: string; streamsUsed?: string[]; reports: StoredReport[]; doctorNotes: DoctorNote[]; raw_ecg?: number[]; ecg_gradcam_data?: number[] }
+export interface StoredReport { id: string; createdAt: string; pdfStoragePath: string; downloadUrl?: string; shapData?: Record<string, number>; failureAnalysisText?: string; interactiveDataUrl?: string }
+export interface StoredPrediction { id: string; createdAt: string; riskScore: number; triageTier?: string; streamsUsed?: string[]; reports: StoredReport[]; doctorNotes: DoctorNote[]; raw_ecg?: number[]; ecg_gradcam_data?: number[]; bloodImageUrl?: string; ecgImageUrl?: string; ecgAbnormality?: string }
 export interface PatientRecord { profile: Profile; predictions: StoredPrediction[] }
 export interface DoctorConnection { message: string; doctor: DoctorProfile }

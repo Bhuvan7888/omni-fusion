@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Activity, Download, ChevronRight, FileText, CheckCircle } from 'lucide-react';
+import { Activity, Download, ChevronRight, FileText, CheckCircle, AlertCircle } from 'lucide-react';
 import FileUploadZone from '@/components/FileUploadZone';
 import HistoryTimeline from '@/components/HistoryTimeline';
 import ShapWaterfall from '@/components/ShapWaterfall';
@@ -18,6 +18,11 @@ import { runOfflineInference, syncOfflinePredictions } from '@/lib/offlineInfere
 export default function Dashboard() {
   const { profile } = useAuth();
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [ecgSessionId, setEcgSessionId] = useState<string | null>(null);
+  const [ecgAbnormality, setEcgAbnormality] = useState<string | null>(null);
+  const [bloodImagePath, setBloodImagePath] = useState<string | null>(null);
+  const [ecgImagePath, setEcgImagePath] = useState<string | null>(null);
+  
   const [historicalData, setHistoricalData] = useState<VitalsInput | null>(null);
   const [isPredicting, setIsPredicting] = useState(false);
   const [prediction, setPrediction] = useState<PredictResponse | null>(null);
@@ -85,12 +90,18 @@ export default function Dashboard() {
         o2: historicalData?.o2 ?? 98.0
       };
 
+      const isEcgOnly = sessionId === null && ecgSessionId !== null;
+
       const payload: PredictRequest = {
         patientId: profile?.id || "",
         ecg: ecgData,
         vitals: dummyVitals,
         historical: historicalData || undefined,
-        uploadSessionId: sessionId || undefined
+        uploadSessionId: sessionId || ecgSessionId || undefined,
+        isEcgOnly,
+        bloodImagePath: bloodImagePath || undefined,
+        ecgImagePath: ecgImagePath || undefined,
+        ecgAbnormality: ecgAbnormality || undefined
       };
 
       setBaseRequest(payload);
@@ -152,19 +163,31 @@ export default function Dashboard() {
         )}
 
         {/* Top Section: Upload & Action */}
-        <section className="w-full mb-12 bg-obsidian border border-slate-800 rounded-2xl p-8 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="flex-1 w-full">
-            <h2 className="text-lg font-semibold text-slate-200 mb-2">1. Patient Historical Data</h2>
-            <p className="text-slate-500 text-sm mb-4">
-              Upload a CSV of previous visits. Vitals and historical fields are derived from your upload. <br/>
-              <span className="text-amber-400 font-medium">Note: ECG waveforms are purely synthetic for demo purposes regardless of your upload.</span>
-            </p>
-            <FileUploadZone onSessionCreated={(res) => {
-              setSessionId(res.sessionId);
-              if (res.aggregatedData) {
-                setHistoricalData(res.aggregatedData);
-              }
-            }} />
+        <section className="w-full mb-12 bg-obsidian border border-slate-800 rounded-2xl p-8 shadow-2xl flex flex-col md:flex-row items-stretch justify-between gap-8">
+          <div className="flex-1 w-full space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-200 mb-2">1. Blood Report / Historical Data</h2>
+              <p className="text-slate-500 text-sm mb-4">Upload a blood report to calculate cardiovascular risk.</p>
+              <FileUploadZone mode="blood" onSessionCreated={(res) => {
+                setSessionId(res.sessionId);
+                if (res.aggregatedData) {
+                  setHistoricalData(res.aggregatedData);
+                  if (res.aggregatedData.uploadedImagePath) setBloodImagePath(res.aggregatedData.uploadedImagePath);
+                }
+              }} />
+            </div>
+            
+            <div className="border-t border-slate-800 pt-6">
+              <h2 className="text-lg font-semibold text-slate-200 mb-2">2. ECG Report (Optional)</h2>
+              <p className="text-slate-500 text-sm mb-4">Upload a 12-lead ECG printout for Vision AI extraction.</p>
+              <FileUploadZone mode="ecg" onSessionCreated={(res) => {
+                setEcgSessionId(res.sessionId);
+                if (res.aggregatedData) {
+                  if (res.aggregatedData.ecgAbnormality) setEcgAbnormality(res.aggregatedData.ecgAbnormality);
+                  if (res.aggregatedData.uploadedImagePath) setEcgImagePath(res.aggregatedData.uploadedImagePath);
+                }
+              }} />
+            </div>
           </div>
           
           <div className="hidden md:flex flex-col items-center justify-center px-4">
@@ -172,7 +195,7 @@ export default function Dashboard() {
           </div>
 
           <div className="flex-1 w-full flex flex-col items-center justify-center border-t md:border-t-0 md:border-l border-slate-800 pt-8 md:pt-0 pl-0 md:pl-8">
-            <h2 className="text-lg font-semibold text-slate-200 mb-4">2. Run AI Model</h2>
+            <h2 className="text-lg font-semibold text-slate-200 mb-4">3. Run AI Model</h2>
             <button
               onClick={handleRunInference}
               disabled={isPredicting}
@@ -191,8 +214,8 @@ export default function Dashboard() {
                 </>
               )}
             </button>
-            {sessionId && !isPredicting && (
-              <p className="text-green-400 text-sm mt-4">Session attached. Ready.</p>
+            {(sessionId || ecgSessionId) && !isPredicting && (
+              <p className="text-green-400 text-sm mt-4">Data attached. Ready.</p>
             )}
           </div>
         </section>
@@ -204,10 +227,16 @@ export default function Dashboard() {
             <div className="flex flex-col space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-3">
-                    Risk Score: <span className={prediction.riskScore > 0.5 ? 'text-red-400' : 'text-green-400'}>{(prediction.riskScore * 100).toFixed(1)}%</span>
-                    <TriageBadge tier={prediction.triageTier} />
-                  </h2>
+                  {prediction.riskScore !== null ? (
+                    <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-3">
+                      Risk Score: <span className={prediction.riskScore > 0.5 ? 'text-red-400' : 'text-green-400'}>{(prediction.riskScore * 100).toFixed(1)}%</span>
+                      {prediction.triageTier && <TriageBadge tier={prediction.triageTier} />}
+                    </h2>
+                  ) : (
+                    <h2 className="text-2xl font-bold text-amber-400 flex items-center gap-3">
+                      ECG Only Analysis - No Risk Score
+                    </h2>
+                  )}
                   <p className="text-slate-500 text-sm mt-1">Streams combined: {prediction.streamsUsed.join(' + ')}</p>
                 </div>
                 {report && (
@@ -232,7 +261,19 @@ export default function Dashboard() {
                 </div>
               )}
               
-              <ShapWaterfall shapData={prediction.shapData} />
+              {prediction.ecgAbnormality && (
+                <div className="w-full bg-red-900/20 border border-red-800 rounded-lg p-4 mb-4">
+                  <h3 className="text-red-400 font-semibold mb-1 text-sm flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" /> ECG Abnormality Detected
+                  </h3>
+                  <p className="text-red-200/80 text-sm">
+                    {prediction.ecgAbnormality}
+                  </p>
+                  <p className="text-red-300 text-xs mt-2 font-medium">Please consult a doctor for further evaluation.</p>
+                </div>
+              )}
+              
+              {prediction.riskScore !== null && <ShapWaterfall shapData={prediction.shapData} />}
               
               <div className="w-full bg-slate-900 rounded-lg p-4 border border-slate-800">
                 <h3 className="text-slate-300 font-semibold mb-4 text-sm">Longitudinal Medical History</h3>
@@ -267,7 +308,7 @@ export default function Dashboard() {
                 </p>
               </div>
 
-              <ClinicalSummaryCard predictionId={prediction.predictionId} />
+              {prediction.riskScore !== null && <ClinicalSummaryCard predictionId={prediction.predictionId} />}
             </div>
             
             {/* Full width What-If Explorer */}

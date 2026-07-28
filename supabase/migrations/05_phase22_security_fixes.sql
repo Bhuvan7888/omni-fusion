@@ -28,6 +28,7 @@ CREATE POLICY "Patients can view their own consents"
 ON public.abdm_consents FOR SELECT
 USING (auth.uid() = patient_id);
 
+DROP POLICY IF EXISTS "Doctors can view consents of linked patients" ON public.abdm_consents;
 CREATE POLICY "Doctors can view consents of linked patients"
 ON public.abdm_consents FOR SELECT
 USING (
@@ -39,5 +40,6 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Service Role Full Access abdm_consents" ON public.abdm_consents;
 CREATE POLICY "Service Role Full Access abdm_consents" 
 ON public.abdm_consents USING (true);

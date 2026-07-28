@@ -31,10 +31,10 @@ async def onboard_profile(request: Request, profile_data: ProfileCreate, user_da
     if existing_profile:
         raise HTTPException(status_code=400, detail="Profile already exists")
         
-    data = profile_data.model_dump(exclude_unset=True)
+    data = profile_data.model_dump(exclude_unset=True, mode='json')
     
     # Validate Role
-    if data.get("role") not in [Role.PATIENT.value, Role.DOCTOR.value, Role.RESEARCHER.value]:
+    if data.get("role") not in [Role.PATIENT.value, Role.DOCTOR.value]:
         raise HTTPException(status_code=400, detail="Invalid role")
         
     if data.get("role") == Role.DOCTOR.value:
@@ -65,7 +65,7 @@ async def update_profile(profile_data: ProfileUpdate, user_data: dict = Depends(
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
         
-    data = profile_data.model_dump(exclude_unset=True)
+    data = profile_data.model_dump(exclude_unset=True, mode='json')
     
     # Recalculate BMI if needed
     weight = data.get("weight_kg", profile.get("weight_kg"))

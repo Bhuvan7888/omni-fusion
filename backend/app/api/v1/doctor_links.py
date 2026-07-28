@@ -8,6 +8,7 @@ from app.core.errors import handle_supabase_errors
 from app.core.supabase_client import supabase
 from app.models.enums import LinkStatus, Role
 from app.models.profile_schemas import LinkStatusUpdate
+from app.core.config import TRIAGE_RED_THRESHOLD, TRIAGE_ORANGE_THRESHOLD, TRIAGE_YELLOW_THRESHOLD
 
 router = APIRouter()
 
@@ -47,6 +48,18 @@ async def request_link(doctor_id: str, user_data: dict = Depends(require_role([R
     doctor = supabase.table("profiles").select("id").eq("id", doctor_id).eq("role", Role.DOCTOR.value).execute()
     if not doctor.data:
         raise HTTPException(status_code=404, detail="Doctor not found")
+        
+    existing = supabase.table("doctor_patient_links").select("id, status").eq("doctor_id", doctor_id).eq("patient_id", patient_id).execute()
+    if existing.data:
+        status = existing.data[0]["status"]
+        if status == LinkStatus.ACCEPTED.value:
+            return {"message": "Already connected", "link": existing.data[0]}
+        elif status == LinkStatus.PENDING.value:
+            return {"message": "Request already pending", "link": existing.data[0]}
+        else:
+            result = supabase.table("doctor_patient_links").update({"status": LinkStatus.PENDING.value}).eq("id", existing.data[0]["id"]).execute()
+            return {"message": "Request sent successfully", "link": result.data[0]}
+            
     result = supabase.table("doctor_patient_links").insert({"doctor_id": doctor_id, "patient_id": patient_id, "status": LinkStatus.PENDING.value}).execute()
     return {"message": "Request sent successfully", "link": result.data[0]}
 
@@ -71,4 +84,28 @@ async def update_link_status(link_id: str, update: LinkStatusUpdate, user_data: 
 async def get_patients(user_data: dict = Depends(require_role([Role.DOCTOR]))):
     doctor_id = user_data.get("auth").id
     links = supabase.table("doctor_patient_links").select("*, profiles!patient_id(*)").eq("doctor_id", doctor_id).execute()
+    
+    # Efficiently fetch latest triage tiers for accepted patients
+    patient_ids = [link["patient_id"] for link in links.data or [] if link["status"] == "accepted"]
+    if patient_ids:
+        # Fetch risk scores to compute triage tiers
+        # Order by created_at desc ensures the first we see per patient is the latest
+        predictions = supabase.table("predictions").select("patient_id, risk_score").in_("patient_id", patient_ids).order("created_at", desc=True).execute()
+        
+        latest_preds = {}
+        for p in predictions.data or []:
+            pid = p["patient_id"]
+            if pid not in latest_preds:
+                latest_preds[pid] = p["risk_score"]
+                
+        for link in links.data or []:
+            pid = link["patient_id"]
+            if pid in latest_preds:
+                score = latest_preds[pid] * 100
+                if score >= TRIAGE_RED_THRESHOLD: tier = "Red"
+                elif score >= TRIAGE_ORANGE_THRESHOLD: tier = "Orange"
+                elif score >= TRIAGE_YELLOW_THRESHOLD: tier = "Yellow"
+                else: tier = "Green"
+                link["latest_triage_tier"] = tier
+
     return links.data

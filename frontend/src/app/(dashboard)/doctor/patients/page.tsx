@@ -29,23 +29,13 @@ export default function DoctorPatientsPage() {
         setFilteredPatients(fetchedPatients)
         setDoctorCode(code.code)
         
-        // Fetch triage tiers
+        // Extract triage tiers directly from the enhanced API response
         const tiers: Record<string, string> = {}
-        await Promise.all(fetchedPatients.map(async (p) => {
-          try {
-            const record = await api.getPatientRecord(p.id)
-            if (record.predictions && record.predictions.length > 0) {
-              const latest = record.predictions.reduce((prev, current) => 
-                (new Date(prev.createdAt) > new Date(current.createdAt)) ? prev : current
-              )
-              if (latest.triageTier) {
-                tiers[p.id] = latest.triageTier
-              }
-            }
-          } catch (e) {
-            // ignore
+        ;(links || []).filter((link) => link.status === 'accepted').forEach((link) => {
+          if (link.latest_triage_tier) {
+            tiers[link.patientId] = link.latest_triage_tier
           }
-        }))
+        })
         setPatientTiers(tiers)
       } catch (err) {
         console.error("Error fetching patients:", err)

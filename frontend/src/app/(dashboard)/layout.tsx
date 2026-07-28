@@ -58,7 +58,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {(!collapsed || mobile) && <p className="eyebrow">{isPatient ? "Patient workspace" : "Clinical workspace"}</p>}
         <nav className="sidebar-nav" aria-label="Primary navigation">
           {links.map(link => {
-            const active = pathname === link.href || pathname.startsWith(link.href + "/")
+            const isDashboard = link.href === "/patient" || link.href === "/doctor"
+            const active = isDashboard ? pathname === link.href : (pathname === link.href || pathname.startsWith(link.href + "/"))
             const Icon = link.icon
             return <Link key={link.name} href={link.href} title={collapsed && !mobile ? link.name : undefined}
               onClick={() => setMobileOpen(false)} className={active ? "nav-item active" : "nav-item"}>

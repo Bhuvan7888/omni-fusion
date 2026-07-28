@@ -23,13 +23,26 @@ async def list_my_reports(user_data: dict = Depends(require_role([Role.PATIENT])
     try:
         result = (
             supabase.table("predictions")
-            .select("id,created_at,risk_score,reports(id,created_at,pdf_storage_path),doctor_notes(id,note,created_at)")
+            .select("id,created_at,risk_score,raw_input_ref,reports(id,created_at,pdf_storage_path),doctor_notes(id,note,created_at)")
             .eq("patient_id", patient_id)
             .order("created_at", desc=True)
             .execute()
         )
 
         for prediction in result.data or []:
+            raw_input_ref = prediction.get("raw_input_ref") or {}
+            blood_image_path = raw_input_ref.get("blood_image_path")
+            ecg_image_path = raw_input_ref.get("ecg_image_path")
+            prediction["ecg_abnormality"] = raw_input_ref.get("ecg_abnormality")
+            
+            if blood_image_path:
+                signed = supabase.storage.from_("reports").create_signed_url(blood_image_path, 3600)
+                prediction["blood_image_url"] = signed.get("signedURL") or signed.get("signedUrl") or ""
+                
+            if ecg_image_path:
+                signed = supabase.storage.from_("reports").create_signed_url(ecg_image_path, 3600)
+                prediction["ecg_image_url"] = signed.get("signedURL") or signed.get("signedUrl") or ""
+
             for report in prediction.get("reports") or []:
                 path = report.get("pdf_storage_path")
                 if path:
@@ -95,9 +108,16 @@ async def generate_report(request: Request, payload: ReportRequest, prediction_i
             if not pred_res.data:
                 # Fallback if prediction not found (or test environment)
                 risk_score = 0.5
+                blood_image_path = None
+                ecg_image_path = None
+                ecg_abnormality = None
             else:
                 prediction = pred_res.data[0]
-                risk_score = prediction['risk_score']
+                risk_score = prediction.get('risk_score')
+                raw_input_ref = prediction.get('raw_input_ref') or {}
+                blood_image_path = raw_input_ref.get('blood_image_path')
+                ecg_image_path = raw_input_ref.get('ecg_image_path')
+                ecg_abnormality = raw_input_ref.get('ecg_abnormality')
                 
                 # Verify Ownership (IDOR check)
                 user_id = user_data.get("auth").id
@@ -114,9 +134,12 @@ async def generate_report(request: Request, payload: ReportRequest, prediction_i
         except Exception as e:
             logger.warning(f"Could not fetch prediction from Supabase: {e}")
             risk_score = 0.5
+            blood_image_path = None
+            ecg_image_path = None
+            ecg_abnormality = None
         
         failure_analysis_summary = payload.failure_analysis_summary
-        if lang != "en":
+        if lang != "en" and risk_score is not None:
             # Translate or regenerate the localized SOAP note
             failure_analysis_summary = copilot_service.generate_soap_note(
                 risk_score=risk_score,
@@ -132,11 +155,43 @@ async def generate_report(request: Request, payload: ReportRequest, prediction_i
             "risk_score": risk_score,
             "shap_data": payload.shap_data,
             "failure_analysis_summary": failure_analysis_summary,
-            "ecg_gradcam_heatmap_b64": payload.ecg_gradcam_heatmap_b64
+            "ecg_gradcam_heatmap_b64": payload.ecg_gradcam_heatmap_b64,
+            "ecg_abnormality": ecg_abnormality,
+            "blood_image_path": None,
+            "ecg_image_path": None
         }
+        
+        tmp_blood_path = None
+        if blood_image_path:
+            try:
+                img_bytes = supabase.storage.from_("reports").download(blood_image_path)
+                import tempfile
+                fd, tmp_blood_path = tempfile.mkstemp(suffix=".png")
+                with os.fdopen(fd, 'wb') as f:
+                    f.write(img_bytes)
+                pdf_data["blood_image_path"] = tmp_blood_path
+            except Exception as e:
+                logger.error(f"Failed to download blood image for PDF: {e}")
+                
+        tmp_ecg_path = None
+        if ecg_image_path:
+            try:
+                img_bytes = supabase.storage.from_("reports").download(ecg_image_path)
+                import tempfile
+                fd, tmp_ecg_path = tempfile.mkstemp(suffix=".png")
+                with os.fdopen(fd, 'wb') as f:
+                    f.write(img_bytes)
+                pdf_data["ecg_image_path"] = tmp_ecg_path
+            except Exception as e:
+                logger.error(f"Failed to download ecg image for PDF: {e}")
         
         # Generate PDF
         pdf_path = pdf_service.generate_report(pdf_data, lang=lang)
+        
+        if tmp_blood_path and os.path.exists(tmp_blood_path):
+            os.remove(tmp_blood_path)
+        if tmp_ecg_path and os.path.exists(tmp_ecg_path):
+            os.remove(tmp_ecg_path)
         
         # Upload to Supabase Storage
         file_name = f"{prediction_id}_{uuid.uuid4().hex[:8]}.pdf"
@@ -209,7 +264,7 @@ async def generate_report(request: Request, payload: ReportRequest, prediction_i
         
         return ReportResponse(
             prediction_id=prediction_id,
-            risk_score=risk_score,
+            risk_score=risk_score if risk_score is not None else -1.0,
             shap_data=payload.shap_data,
             failure_analysis_text=failure_analysis_summary,
             pdf_storage_path=storage_path,

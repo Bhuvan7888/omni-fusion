@@ -7,10 +7,11 @@ import { api } from '@/lib/api';
 import { UploadHistoricalResponse } from '@/lib/types';
 
 interface FileUploadZoneProps {
+  mode?: 'blood' | 'ecg';
   onSessionCreated: (response: UploadHistoricalResponse) => void;
 }
 
-export default function FileUploadZone({ onSessionCreated }: FileUploadZoneProps) {
+export default function FileUploadZone({ mode = 'blood', onSessionCreated }: FileUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
@@ -23,12 +24,21 @@ export default function FileUploadZone({ onSessionCreated }: FileUploadZoneProps
     setErrorMessage('');
     
     try {
-      const res = await api.uploadHistoricalCSV(selectedFile);
+      let res;
+      if (mode === 'ecg') {
+        res = await api.uploadEcgReport(selectedFile);
+      } else {
+        if (selectedFile.name.toLowerCase().endsWith('.csv')) {
+          res = await api.uploadHistoricalCSV(selectedFile);
+        } else {
+          res = await api.uploadBloodReport(selectedFile);
+        }
+      }
       setStatus('success');
       onSessionCreated(res);
     } catch (err: unknown) {
       setStatus('error');
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to upload CSV');
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to upload file');
     }
   };
 
@@ -62,7 +72,7 @@ export default function FileUploadZone({ onSessionCreated }: FileUploadZoneProps
       >
         <input
           type="file"
-          accept=".csv"
+          accept=".csv,.pdf,.jpg,.jpeg,.png"
           className="hidden"
           ref={fileInputRef}
           onChange={(e) => {
@@ -75,8 +85,8 @@ export default function FileUploadZone({ onSessionCreated }: FileUploadZoneProps
         {status === 'idle' && (
           <div className="flex flex-col items-center cursor-pointer">
             <UploadCloud className="w-12 h-12 text-slate-400 mb-4" />
-            <p className="text-slate-300 font-medium">Click or drag CSV here</p>
-            <p className="text-sm text-slate-500 mt-1">Historical Panel Data</p>
+            <p className="text-slate-300 font-medium">Click or drag {mode === 'ecg' ? 'ECG' : 'Blood'} Report here</p>
+            <p className="text-sm text-slate-500 mt-1">{mode === 'ecg' ? 'PDF, JPG, or PNG' : 'PDF, JPG, PNG, or CSV'}</p>
           </div>
         )}
 

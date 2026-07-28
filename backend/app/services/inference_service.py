@@ -132,11 +132,17 @@ class InferenceService:
         if np.any(np.abs(vitals_arr) > 8):
             print(f"Warning: Transformed vitals have extreme values (> 8 standard deviations): {vitals_arr}")
         
+        # Clip to prevent out-of-distribution neural network extrapolation
+        vitals_arr = np.clip(vitals_arr, -3.0, 3.0)
+        
         if req.historical:
             hist_arr_raw = np.array([[getattr(req.historical, c) for c in self.scaler_feature_order]], dtype=np.float32)
             hist_arr = self.vitals_scaler.transform(hist_arr_raw).astype(np.float32)
             if np.any(np.abs(hist_arr) > 8):
                 print(f"Warning: Transformed historical vitals have extreme values (> 8 standard deviations): {hist_arr}")
+            
+            # Clip to prevent out-of-distribution neural network extrapolation
+            hist_arr = np.clip(hist_arr, -3.0, 3.0)
             streams_used = ["ecg", "vitals", "historical"]
         else:
             hist_arr = np.zeros((1, len(self.scaler_feature_order)), dtype=np.float32)
