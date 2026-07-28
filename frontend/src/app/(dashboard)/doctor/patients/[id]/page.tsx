@@ -10,7 +10,7 @@ import { api } from '@/lib/api'
 import type { DoctorNote, Profile, StoredPrediction } from '@/lib/types'
 import { TriageBadge } from '@/components/TriageBadge'
 import { ClinicalSummaryCard } from '@/components/ClinicalSummaryCard'
-import { PredictionHistoryList } from '@/components/PredictionHistoryList'
+
 import { HistoricalEcgViewer } from '@/components/HistoricalEcgViewer'
 import { RiskForecastChart } from '@/components/RiskForecastChart'
 import { ReportComparison } from '@/components/ReportComparison'
