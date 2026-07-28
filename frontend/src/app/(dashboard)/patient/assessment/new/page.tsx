@@ -115,7 +115,7 @@ export default function Dashboard() {
         const rep = await api.generateReport(pred.predictionId, {
           patientId: payload.patientId,
           shapData: pred.shapData,
-          ecgGradcamHeatmapB64: pred.ecgGradcamHeatmapB64,
+          ecgGradcamHeatmapB64: pred.ecgGradcamHeatmapB64 || "",
           failureAnalysisSummary: pred.failureAnalysisSummary,
           ecgGradcamData: pred.ecgGradcamData,
           rawEcg: pred.rawEcg
