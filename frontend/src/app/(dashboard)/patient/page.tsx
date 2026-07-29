@@ -110,6 +110,8 @@ export default function PatientDashboard() {
                   <YAxis stroke="#64748b" fontSize={12} />
                   <Tooltip 
                     contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '8px', color: '#fff' }}
+                    formatter={(value: number) => [`${value.toFixed(1)}%`, 'Risk Score']}
+                    labelFormatter={(label: string) => `Date: ${label}`}
                   />
                   <Line type="monotone" dataKey="risk" stroke="#3b82f6" strokeWidth={3} dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }} />
                 </LineChart>
