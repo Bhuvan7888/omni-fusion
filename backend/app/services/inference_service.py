@@ -5,6 +5,7 @@ import json
 import base64
 import io
 import torch
+torch.set_num_threads(1)
 import torch.nn.functional as F
 import numpy as np
 import sys
@@ -104,6 +105,8 @@ class InferenceService:
 
         # SHAP Background
         self.bg_summary = np.load(shap_bg_path).astype(np.float32)
+        import gc
+        gc.collect()
         print("InferenceService initialization complete.", flush=True)
 
     def predict(self, req: PredictRequest) -> PredictResponse:
