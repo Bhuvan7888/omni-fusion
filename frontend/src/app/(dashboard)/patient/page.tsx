@@ -33,14 +33,18 @@ export default function PatientDashboard() {
     return <div className="p-8 text-slate-400">Loading your health portal...</div>
   }
 
-  const latestRisk = analytics?.trends?.length 
-    ? analytics.trends[analytics.trends.length - 1].riskScore * 100
+  const sortedTrends = [...(analytics?.trends || [])].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  )
+
+  const latestRisk = sortedTrends.length 
+    ? sortedTrends[sortedTrends.length - 1].riskScore * 100
     : 0
 
-  const chartData = analytics?.trends?.map((t) => ({
+  const chartData = sortedTrends.map((t) => ({
     date: new Date(t.createdAt).toLocaleDateString(),
-    risk: t.riskScore * 100
-  })) || []
+    risk: Number((t.riskScore * 100).toFixed(1))
+  }))
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4">
@@ -110,10 +114,9 @@ export default function PatientDashboard() {
                   <YAxis stroke="#64748b" fontSize={12} />
                   <Tooltip 
                     contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '8px', color: '#fff' }}
-                    formatter={(value: number) => [`${value.toFixed(1)}%`, 'Risk Score']}
                     labelFormatter={(label: string) => `Date: ${label}`}
                   />
-                  <Line type="monotone" dataKey="risk" stroke="#3b82f6" strokeWidth={3} dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }} />
+                  <Line type="monotone" dataKey="risk" name="Risk Score" unit="%" stroke="#3b82f6" strokeWidth={3} dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>

@@ -3,7 +3,7 @@ import Dexie, { Table } from 'dexie';
 import { PredictRequest, PredictResponse } from './types';
 
 // Configure ONNX Runtime to locate the WASM binaries
-ort.env.wasm.wasmPaths = '/_next/static/wasm/'; 
+ort.env.wasm.wasmPaths = '/wasm/'; 
 
 // Simple Dexie database for queuing offline predictions
 export interface OfflinePrediction {
