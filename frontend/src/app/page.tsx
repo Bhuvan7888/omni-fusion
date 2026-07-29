@@ -80,11 +80,11 @@ export default function LandingPage() {
               </Link>
             ) : (
               <>
-                <Link href="/signup" className="group flex items-center justify-center w-full sm:w-auto px-8 py-4 bg-white text-slate-950 font-semibold rounded-full hover:bg-slate-100 transition-all hover:scale-105">
-                  Launch Platform
+                <Link href="/signup" className="group flex items-center justify-center w-full sm:w-auto px-8 py-4 bg-white text-slate-950 font-semibold rounded-full hover:bg-slate-100 transition-all duration-300 hover:scale-105 hover:shadow-[0_0_40px_rgba(255,255,255,0.3)] active:scale-95">
+                  Get Started
                   <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Link>
-                <Link href="/login" className="flex items-center justify-center w-full sm:w-auto px-8 py-4 bg-slate-900 border border-slate-800 text-white font-semibold rounded-full hover:bg-slate-800 transition-all">
+                <Link href="/login" className="flex items-center justify-center w-full sm:w-auto px-8 py-4 bg-slate-900 border border-slate-800 text-white font-semibold rounded-full hover:bg-slate-800 transition-all duration-300 hover:scale-105 hover:shadow-[0_0_40px_rgba(59,130,246,0.15)] active:scale-95 hover:border-slate-700">
                   Sign In to Portal
                 </Link>
               </>
