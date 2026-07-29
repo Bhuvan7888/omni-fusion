@@ -14,9 +14,15 @@ export default function LandingPage() {
     window.location.reload()
   }
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 flex flex-col font-sans selection:bg-blue-500/30">
+    <div className="min-h-screen bg-[#0B0F19] text-slate-200 flex flex-col font-sans selection:bg-blue-500/30 relative overflow-hidden">
+      {/* Dynamic Mesh Background */}
+      <div className="absolute inset-0 z-0 opacity-40">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/30 rounded-full blur-[120px] pointer-events-none mix-blend-screen" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-600/20 rounded-full blur-[120px] pointer-events-none mix-blend-screen" />
+        <div className="absolute top-[40%] left-[60%] w-[30%] h-[30%] bg-purple-600/20 rounded-full blur-[100px] pointer-events-none mix-blend-screen" />
+      </div>
       {/* Header */}
-      <header className="absolute top-0 w-full p-6 flex justify-between items-center z-10 border-b border-white/5 bg-slate-950/50 backdrop-blur-md">
+      <header className="absolute top-0 w-full p-6 flex justify-between items-center z-10 border-b border-white/10 bg-[#0B0F19]/70 backdrop-blur-xl shadow-lg">
         <div className="flex items-center space-x-3">
           <Activity className="w-8 h-8 text-emerald-400" />
           <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
@@ -47,13 +53,10 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <main className="flex-1 flex flex-col items-center justify-center pt-32 pb-20 px-4 relative overflow-hidden">
-        {/* Abstract Background Elements */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-[100px] pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-600/10 rounded-full blur-[100px] pointer-events-none" />
+      <main className="flex-1 flex flex-col items-center justify-center pt-32 pb-20 px-4 relative z-10">
 
         <div className="max-w-4xl w-full text-center space-y-8 z-10 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-          <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-slate-900/80 border border-slate-800 text-sm font-medium text-emerald-400 mb-4">
+          <div className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md text-sm font-semibold text-emerald-400 mb-6 shadow-xl shadow-black/20">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -61,14 +64,14 @@ export default function LandingPage() {
             <span>Platform Extension V2 Live</span>
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-white leading-tight">
+          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-white leading-[1.1] drop-shadow-2xl">
             The Future of <br className="hidden md:block" />
-            <span className="bg-gradient-to-r from-blue-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-400 bg-clip-text text-transparent drop-shadow-lg">
               Cardiovascular Intelligence
             </span>
           </h1>
           
-          <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed font-medium drop-shadow-md">
             Omni-Fusion seamlessly integrates multimodal patient data—combining ECG waveforms, vitals, and longitudinal history—to deliver precise, AI-driven clinical insights.
           </p>
 
@@ -84,7 +87,7 @@ export default function LandingPage() {
                   Get Started
                   <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Link>
-                <Link href="/login" className="flex items-center justify-center w-full sm:w-auto px-8 py-4 bg-slate-900 border border-slate-800 text-white font-semibold rounded-full hover:bg-slate-800 transition-all duration-300 hover:scale-105 hover:shadow-[0_0_40px_rgba(59,130,246,0.15)] active:scale-95 hover:border-slate-700">
+                <Link href="/login" className="flex items-center justify-center w-full sm:w-auto px-8 py-4 bg-white/5 border border-white/10 text-white font-semibold rounded-full backdrop-blur-md hover:bg-white/10 transition-all duration-300 hover:scale-105 hover:shadow-[0_0_40px_rgba(59,130,246,0.15)] active:scale-95 hover:border-white/20">
                   Sign In to Portal
                 </Link>
               </>
@@ -94,7 +97,7 @@ export default function LandingPage() {
 
         {/* Feature Grid */}
         <div className="max-w-5xl w-full grid grid-cols-1 md:grid-cols-3 gap-6 mt-32 z-10">
-          <div className="bg-slate-900/50 backdrop-blur-md border border-slate-800 p-8 rounded-3xl hover:border-blue-500/30 transition-colors">
+          <div className="bg-white/5 backdrop-blur-lg border border-white/10 p-8 rounded-3xl hover:bg-white/10 hover:border-blue-500/50 transition-all duration-300 shadow-2xl hover:-translate-y-1">
             <div className="w-12 h-12 bg-blue-500/20 text-blue-400 flex items-center justify-center rounded-2xl mb-6">
               <Activity className="w-6 h-6" />
             </div>
@@ -104,7 +107,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="bg-slate-900/50 backdrop-blur-md border border-slate-800 p-8 rounded-3xl hover:border-emerald-500/30 transition-colors">
+          <div className="bg-white/5 backdrop-blur-lg border border-white/10 p-8 rounded-3xl hover:bg-white/10 hover:border-emerald-500/50 transition-all duration-300 shadow-2xl hover:-translate-y-1">
             <div className="w-12 h-12 bg-emerald-500/20 text-emerald-400 flex items-center justify-center rounded-2xl mb-6">
               <ShieldCheck className="w-6 h-6" />
             </div>
@@ -114,7 +117,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="bg-slate-900/50 backdrop-blur-md border border-slate-800 p-8 rounded-3xl hover:border-teal-500/30 transition-colors">
+          <div className="bg-white/5 backdrop-blur-lg border border-white/10 p-8 rounded-3xl hover:bg-white/10 hover:border-teal-500/50 transition-all duration-300 shadow-2xl hover:-translate-y-1">
             <div className="w-12 h-12 bg-teal-500/20 text-teal-400 flex items-center justify-center rounded-2xl mb-6">
               <Stethoscope className="w-6 h-6" />
             </div>
@@ -126,7 +129,7 @@ export default function LandingPage() {
         </div>
       </main>
 
-      <footer className="py-8 text-center text-slate-500 text-sm border-t border-slate-900">
+      <footer className="py-8 text-center text-slate-400 text-sm border-t border-white/10 z-10 bg-[#0B0F19]/50 backdrop-blur-md">
         &copy; {new Date().getFullYear()} Omni-Fusion Healthcare. AI-assisted diagnostics platform.
       </footer>
     </div>
