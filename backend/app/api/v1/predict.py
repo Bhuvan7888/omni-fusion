@@ -2,6 +2,7 @@
 
 import logging
 import uuid
+import asyncio
 
 from fastapi import APIRouter, HTTPException, Depends, Request
 from datetime import datetime, timedelta, timezone
@@ -30,7 +31,7 @@ async def predict(request: Request, payload: PredictRequest, user_data: dict = D
             existing = supabase.table("predictions").select("id").eq("raw_input_ref->>offline_client_id", payload.offline_client_id).execute()
             if existing.data:
                 # Re-run inference just to get the artifacts, but don't persist
-                prediction = inference_service.predict(payload)
+                prediction = await asyncio.to_thread(inference_service.predict, payload)
                 prediction.prediction_id = existing.data[0]["id"]
                 return prediction
                 
@@ -45,7 +46,7 @@ async def predict(request: Request, payload: PredictRequest, user_data: dict = D
                 ecg_abnormality=payload.ecg_abnormality
             )
         else:
-            prediction = inference_service.predict(payload)
+            prediction = await asyncio.to_thread(inference_service.predict, payload)
             if payload.ecg_abnormality:
                 prediction.ecg_abnormality = payload.ecg_abnormality
                 
@@ -149,7 +150,7 @@ async def counterfactual_predict(request: Request, payload: PredictCounterfactua
         base_req.vitals = VitalsInput(**vitals_dict)
         
         # Run inference (reuse singleton)
-        prediction = inference_service.predict(base_req)
+        prediction = await asyncio.to_thread(inference_service.predict, base_req)
         # We don't save counterfactuals to the DB. They are just simulations.
         prediction.prediction_id = "counterfactual_sim"
         return prediction
