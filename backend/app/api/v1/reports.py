@@ -58,7 +58,7 @@ async def ensure_archived_report(prediction_id: str, user_data: dict = Depends(r
     """Return an existing PDF or create a downloadable summary for a legacy prediction."""
     patient_id = user_data.get("auth").id
     try:
-        prediction_result = supabase.table("predictions").select("id,risk_score,streams_used,created_at,reports(id,pdf_storage_path)").eq("id", prediction_id).eq("patient_id", patient_id).single().execute()
+        prediction_result = supabase.table("predictions").select("id,risk_score,streams_used,created_at,raw_input_ref,reports(id,pdf_storage_path,shap_data,failure_analysis_text)").eq("id", prediction_id).eq("patient_id", patient_id).single().execute()
         prediction = prediction_result.data
         if not prediction:
             raise HTTPException(status_code=404, detail="Analysis not found")
@@ -69,23 +69,40 @@ async def ensure_archived_report(prediction_id: str, user_data: dict = Depends(r
             return {"download_url": signed.get("signedURL") or signed.get("signedUrl") or "", "generated": False}
 
         streams = ", ".join(prediction.get("streams_used") or []) or "Not recorded"
+        shap_data = {}
+        failure_analysis_summary = f"Archived analysis summary. Input streams used: {streams}. Detailed explainability artifacts were not retained for this legacy analysis."
+        if existing:
+            shap_data = existing[0].get("shap_data") or {}
+            if existing[0].get("failure_analysis_text"):
+                failure_analysis_summary = existing[0].get("failure_analysis_text")
+
+        raw_input = prediction.get("raw_input_ref") or {}
+        
         pdf_path = pdf_service.generate_report({
             "patient_id": patient_id,
             "prediction_id": prediction_id,
             "risk_score": prediction["risk_score"],
-            "shap_data": {},
-            "failure_analysis_summary": f"Archived analysis summary. Input streams used: {streams}. Detailed explainability artifacts were not retained for this legacy analysis.",
+            "shap_data": shap_data,
+            "failure_analysis_summary": failure_analysis_summary,
             "ecg_gradcam_heatmap_b64": "",
+            "ecg_abnormality": raw_input.get("ecg_abnormality"),
+            "blood_image_path": raw_input.get("blood_image_path"),
+            "ecg_image_path": raw_input.get("ecg_image_path")
         })
         storage_path = f"generated_reports/{prediction_id}_{uuid.uuid4().hex[:8]}_archive.pdf"
         with open(pdf_path, "rb") as report_file:
             supabase.storage.from_("reports").upload(storage_path, report_file, file_options={"content-type": "application/pdf"})
         os.remove(pdf_path)
-        supabase.table("reports").insert({
-            "id": str(uuid.uuid4()), "prediction_id": prediction_id, "shap_data": {},
-            "gradcam_ref": "legacy_not_available", "failure_analysis_text": "Archived summary report",
-            "pdf_storage_path": storage_path,
-        }).execute()
+        if existing:
+            supabase.table("reports").update({
+                "pdf_storage_path": storage_path
+            }).eq("id", existing[0]["id"]).execute()
+        else:
+            supabase.table("reports").insert({
+                "id": str(uuid.uuid4()), "prediction_id": prediction_id, "shap_data": shap_data,
+                "gradcam_ref": "legacy_not_available", "failure_analysis_text": failure_analysis_summary,
+                "pdf_storage_path": storage_path,
+            }).execute()
         signed = supabase.storage.from_("reports").create_signed_url(storage_path, 3600)
         return {"download_url": signed.get("signedURL") or signed.get("signedUrl") or "", "generated": True}
     except HTTPException:
@@ -166,24 +183,34 @@ async def generate_report(request: Request, payload: ReportRequest, prediction_i
             try:
                 img_bytes = supabase.storage.from_("reports").download(blood_image_path)
                 import tempfile
-                fd, tmp_blood_path = tempfile.mkstemp(suffix=".png")
+                from PIL import Image
+                import io
+                img = Image.open(io.BytesIO(img_bytes))
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+                fd, tmp_blood_path = tempfile.mkstemp(suffix=".jpg")
                 with os.fdopen(fd, 'wb') as f:
-                    f.write(img_bytes)
+                    img.save(f, format="JPEG")
                 pdf_data["blood_image_path"] = tmp_blood_path
             except Exception as e:
-                logger.error(f"Failed to download blood image for PDF: {e}")
+                logger.error(f"Failed to download or convert blood image for PDF: {e}")
                 
         tmp_ecg_path = None
         if ecg_image_path:
             try:
                 img_bytes = supabase.storage.from_("reports").download(ecg_image_path)
                 import tempfile
-                fd, tmp_ecg_path = tempfile.mkstemp(suffix=".png")
+                from PIL import Image
+                import io
+                img = Image.open(io.BytesIO(img_bytes))
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+                fd, tmp_ecg_path = tempfile.mkstemp(suffix=".jpg")
                 with os.fdopen(fd, 'wb') as f:
-                    f.write(img_bytes)
+                    img.save(f, format="JPEG")
                 pdf_data["ecg_image_path"] = tmp_ecg_path
             except Exception as e:
-                logger.error(f"Failed to download ecg image for PDF: {e}")
+                logger.error(f"Failed to download or convert ecg image for PDF: {e}")
         
         # Generate PDF
         pdf_path = pdf_service.generate_report(pdf_data, lang=lang)

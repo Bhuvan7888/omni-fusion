@@ -106,24 +106,7 @@ class PDFService:
                 summary = summary.replace("•", "-").replace("—", "-").replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'").replace("…", "...")
             pdf.multi_cell(0, 8, summary)
         
-        # Add Grad-CAM Heatmap
-        b64_img = predict_res.get('ecg_gradcam_heatmap_b64')
-        if b64_img:
-            try:
-                img_data = base64.b64decode(b64_img)
-                fd_img, img_path = tempfile.mkstemp(suffix=".png")
-                with os.fdopen(fd_img, 'wb') as f:
-                    f.write(img_data)
-                
-                pdf.ln(5)
-                pdf.set_font("helvetica", "B", 14)
-                pdf.cell(0, 10, "ECG Grad-CAM Heatmap", new_x="LMARGIN", new_y="NEXT")
-                pdf.image(img_path, w=150)
-                
-                os.remove(img_path)
-            except Exception as e:
-                pdf.set_font("helvetica", "", 12)
-                pdf.cell(0, 10, f"Failed to decode Grad-CAM heatmap: {str(e)}", new_x="LMARGIN", new_y="NEXT")
+
                 
         blood_image_path = predict_res.get('blood_image_path')
         if blood_image_path and os.path.exists(blood_image_path):
